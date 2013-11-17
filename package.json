@@ -15,9 +15,7 @@
   },
   "devDependencies": {
     "coffee-script": ">=1.6.x",
-    "coffee-toaster": ">=0.6.13"
-  },
-  "dependencies": {
+    "coffee-toaster": ">=0.6.13",
     "requirejs": ">= 2.1.3",
     "jquery": ">= 1.7.2",
     "json2" : ">=0.4.0",
@@ -34,6 +32,8 @@
     "jsdom": ">=0.7.0",
     "events": ">=0.5.0"
   },
+  "dependencies": {
+  },
   "directories": {
     "doc": "doc",
     "src": "src",
@@ -43,5 +43,5 @@
     "prepublish": "cake build",
     "test": "cake test"
   },
-  "main": "./src/data/ggdata"
+  "main": "./lib/ggdata.js"
 }
