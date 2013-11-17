@@ -22,7 +22,7 @@ toast
   # => OPTIONS (optional, default values listed)
   # bare: false
   #packaging: false
-  expose: 'window'
+  #expose: 'window'
   minify: false
 
   # => HTTPFOLDER (optional), RELEASE / DEBUG (required)
