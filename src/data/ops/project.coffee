@@ -17,7 +17,11 @@ class data.ops.Project extends data.Table
   #         '*'  : f accepts row as argument (default)
   #         [..] : f accepts a list of column values as args
   #
-  #   
+  #  for example:
+  #
+  #  1) add 10 to x:
+  #
+  #     { alias: 'x', f: (x) -> x+10, cols: 'x' }
   #
   constructor: (@table, @mappings) ->
     @mappings = _.map @mappings, (desc) =>
@@ -33,10 +37,10 @@ class data.ops.Project extends data.Table
           desc.type = _.times desc.alias.length, () -> desc.type
 
       if desc.cols != '*' and _.isArray desc.cols
-        desc.cols = _.flatten [desc.cols]
         desc.f = ((f, cols) ->
           (row, idx) ->
             args = _.map cols, (col) -> row.get(col)
+            args.push idx
             f.apply f, args
           )(desc.f, desc.cols)
       else

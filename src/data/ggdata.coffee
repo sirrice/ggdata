@@ -12,4 +12,4 @@ exports = module.exports = @
 
 # makes sure the gg namespace has all the classes defined
 _.extend @, data
-@.fromArray = data.Table.fromArray
+@.fromArray = data.Table.fromArray.bind data.Table

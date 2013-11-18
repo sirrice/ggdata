@@ -1,7 +1,6 @@
-require "./envdata"
+require "./env"
 us = require "underscore"
 assert = require "assert"
-require 'datejs'
 
 rows = _.times 10, (i) -> { a: i%2, x: i}
 t = data.Table.fromArray rows, null, 'col'

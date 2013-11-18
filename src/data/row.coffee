@@ -8,9 +8,13 @@ class data.Row
     unless @schema?
       throw Error "Row needs a schema"
     
-    @data ?= _.times @schema.ncols(), () -> null
+    @data ?= []
     unless @data.length == @schema.ncols()
-      console.log "[W] Row: ncols in row != schema  #{@data.length} != #{@schema.ncols()}"
+      1+1
+      #console.log "[W] Row: ncols in row != schema  #{@data.length} != #{@schema.ncols()}"
+
+    while @data.length < @schema.ncols()
+      @data.push null
 
   cols: -> @schema.cols
   has: (col, type=null) -> @schema.has col, type

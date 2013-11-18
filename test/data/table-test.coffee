@@ -1,4 +1,4 @@
-require "../envdata"
+require "../env"
 vows = require "vows"
 assert = require "assert"
 
