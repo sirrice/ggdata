@@ -16,6 +16,7 @@ class data.ColTable extends data.Table
   iterator: ->
     class Iter
       constructor: (@table) ->
+        @colDatas = @table.colDatas
         @schema = @table.schema
         @nrows = @table.nrows()
         @idx = 0
@@ -23,7 +24,7 @@ class data.ColTable extends data.Table
       next: ->
         throw Error("no more elements.  idx=#{@idx}") unless @hasNext()
         @idx += 1
-        rowData = _.map @colDatas, (cd) -> cd[@idx-1]
+        rowData = _.map @colDatas, (cd) => cd[@idx-1]
         new data.Row @schema, rowData
       hasNext: -> @idx < @nrows
       close: -> @table = @schema = null

@@ -171,12 +171,16 @@ checks =
       assert.equal r1.get('a'), r2.get('a'), "a's should be equal: #{r1.get('a')} != #{r2.get('a')}"
 
 
-tests = 
-  topic: makeTable
-_.extend tests, checks
+rowtests = topic: makeTable
+_.extend rowtests, checks
+
+coltests = topic: -> makeTable(10, 'col')
+_.extend coltests, checks
 
 suite.addBatch
-  "table": tests
+#"rowtable": rowtests
+  "coltable": coltests
+
 
 
 

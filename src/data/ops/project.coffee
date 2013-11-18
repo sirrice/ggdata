@@ -24,6 +24,7 @@ class data.ops.Project extends data.Table
   #     { alias: 'x', f: (x) -> x+10, cols: 'x' }
   #
   constructor: (@table, @mappings) ->
+    @mappings = _.compact _.flatten [@mappings]
     @mappings = _.map @mappings, (desc) =>
       throw Error("mapping must has an alias: #{desc}") unless desc.alias?
       desc.cols ?= '*'
