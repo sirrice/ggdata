@@ -7,18 +7,27 @@ class data.ops.HashJoin extends data.Table
   #
   #          () -> new data.Row(t1.schema/t2.schema)
   #
-  constructor: (@t1, @t2, @cols, @jointype, @leftf=null, @rightf=null) ->
+  constructor: (@t1, @t2, @joincols, @jointype, @leftf=null, @rightf=null) ->
     @schema = @t1.schema.clone()
     @schema.merge @t2.schema.clone()
+    @ensureSchema()
     @getkey = (row) -> _.map cols, (col) -> row.get(col)
-    @ht1 = data.ops.Util.buildHT @t1, @cols
-    @ht2 = data.ops.Util.buildHT @t2, @cols
+    @ht1 = data.ops.Util.buildHT @t1, @joincols
+    @ht2 = data.ops.Util.buildHT @t2, @joincols
 
     # methods to create dummy rows for outer/left/right joins
     schema1 = @t1.schema.clone()
     schema2 = @t2.schema.clone()
     @leftf ?= -> new data.Row schema1
     @rightf ?= -> new data.Row schema2
+
+  # make sure joincols are present in t1 and t2
+  ensureSchema: ->
+    for col in @joincols
+      unless @t1.schema.has col
+        throw Error "joincol #{col} not in left table #{@t1.schema.toString()}"
+      unless @t2.schema.has col
+        throw Error "joincol #{col} not in right table #{@t2.schema.toString()}"
 
   iterator: ->
     class Iter

@@ -107,10 +107,12 @@ class data.Schema
     schema
 
 
-  # @return type object { type: , schema:  }
+  # @return type of v
   @type: (v) ->
     if _.isDate v
       data.Schema.date
+    else if _.isType v, data.Table
+      data.Schema.table
     else if _.isObject v
       data.Schema.object
     else if _.isNumber v
@@ -118,6 +120,7 @@ class data.Schema
     else
       data.Schema.ordinal 
 
+  # infer a schema from array of rows or objects
   # @param rows [ {col: val, ..} ]
   @infer: (rows) ->
     schema = new data.Schema

@@ -2,14 +2,15 @@
 
 class data.ops.Partition extends data.Table
 
-  constructor: (@table, @cols) ->
+  constructor: (@table, @cols, @alias='table') ->
     @cols = _.flatten [@cols]
     @schema = @table.schema.project @cols
-    @schema.addColumn 'table', data.Schema.table
+    @schema.addColumn @alias, data.Schema.table
+
 
   iterator: ->
     class Iter
-      constructor: (@schema, @table, @cols) ->
+      constructor: (@schema, @table, @cols, @alias) ->
         @idx = 0
 
       reset: -> 
@@ -22,7 +23,8 @@ class data.ops.Partition extends data.Table
         @idx += 1
         for col, idx in @cols
           row.set col, htrow.key[idx]
-        row.set 'table', htrow.table
+        partition = data.Table.fromArray htrow.table, @table.schema
+        row.set @alias, partition
         row
 
       hasNext: -> 
@@ -33,7 +35,7 @@ class data.ops.Partition extends data.Table
       close: -> 
         @table = null
 
-    new Iter @schema, @table, @cols
+    new Iter @schema, @table, @cols, @alias
 
 
 

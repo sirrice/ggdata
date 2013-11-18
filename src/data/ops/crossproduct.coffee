@@ -4,6 +4,7 @@ class data.ops.Cross extends data.Table
     @schema.merge @right.schema.clone()
     @setup()
 
+
   setup: ->
     defaultf = -> new data.Row(new data.Schema)
     @leftf ?= defaultf
@@ -35,6 +36,8 @@ class data.ops.Cross extends data.Table
           @right = data.Table.fromArray([@leftf()], @left.schema) 
         else unless rhasRows
           @right = data.Table.fromArray([@rightf()], @right.schema) 
+
+  nrows: -> @left.nrows() * @right.nrows()
           
   iterator: ->
     class Iter

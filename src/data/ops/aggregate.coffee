@@ -9,17 +9,63 @@ class data.ops.Aggregate extends data.Table
   #    
   #   if alias is a list, then f is expected to return a dictionary 
   #
+  # @param alias name of the column containing the partition, if null
+  #        will try to sniff it out
   # XXX: support incremental aggs
-  constructor: (@table, @aggs) ->
+  constructor: (@table, @aggs, @alias=null) ->
+    @alias ?= @sniffAlias()
     @schema = @table.schema
-    unless @schema.has 'table', data.Schema.table
-      throw Error "Aggregate doesn't have table column"
-    @schema = @schema.exclude 'table'
-    @aggs = data.ops.Aggregate.parseAggs @aggs, @schema
+    unless @schema.has @alias
+      throw Error("agg schema doesn't have table column #{@alias}: #{@schema.toString}")
 
-  @parseAggs: (aggs, schema) ->
-    _.map aggs, (agg) ->
-      data.ops.Aggregate.normalizeAgg agg, schema
+    @schema = @schema.exclude @alias
+    @parseAggs()
+
+  sniffAlias: ->
+    schema = @table.schema
+    for col in schema.cols
+      if schema.type(col) == data.Schema.table
+        return col
+    throw Error "could not find column with table type! #{schema.toString()}"
+
+
+  nrows: -> @table.nrows()
+
+  iterator: ->
+    class Iter
+      constructor: (@schema, @table, @aggs, @tablealias) ->
+        @iter = @table.iterator()
+        @idx = -1
+
+      reset: -> 
+        @iter.reset()
+        @idx = -1
+
+      next: ->
+        @idx += 1
+        row = @iter.next()
+        newrow = row.project @schema
+
+        for agg in @aggs
+          if _.isArray agg.alias
+            o = agg.f row.get(@tablealias), @idx
+            for col in agg.alias
+              newrow.set col, o[col]
+          else
+            val = agg.f row.get(@tablealias), @idx
+            newrow.set agg.alias, val
+        newrow
+
+      hasNext: -> @iter.hasNext()
+      close: -> @iter.close()
+
+    new Iter @schema, @table, @aggs, @alias
+
+
+  parseAggs: ->
+    @aggs = _.flatten [@aggs]
+    for agg in @aggs
+      data.ops.Aggregate.normalizeAgg agg, @schema
 
   @normalizeAgg: (agg, schema) ->
     agg.type ?= data.Schema.object
@@ -35,38 +81,6 @@ class data.ops.Aggregate extends data.Table
       schema.addColumn agg.alias, agg.type
     agg
 
-
-  iterator: ->
-    class Iter
-      constructor: (@schema, @table, @aggs) ->
-        @iter = @table.iterator()
-        @idx = -1
-
-      reset: -> 
-        @iter.reset()
-        @idx = -1
-
-      next: ->
-        @idx += 1
-        row = @iter.next()
-        newrow = row.project @schema
-
-        _.each @aggs, (agg) ->
-          if _.isArray agg.alias
-            o = agg.f row.get('table'), @idx
-            for col in agg.alias
-              newrow.set col, o[col]
-          else
-            val = agg.f row.get('table'), @idx
-            newrow.set agg.alias, val
-        newrow
-
-      hasNext: -> @iter.hasNext()
-      close: -> @iter.close()
-
-    new Iter @schema, @table, @aggs
-
-
    
 
 
@@ -76,9 +90,9 @@ class data.ops.Aggregate extends data.Table
   #
 
   @count: (alias="count") ->
-    f = (arr) -> 
-      if arr?
-        arr.length
+    f = (t) -> 
+      if t?
+        t.nrows()
       else 
         0
     {
@@ -99,12 +113,10 @@ class data.ops.Aggregate extends data.Table
   # @param col column name of list of column names
   @sum: (col, alias='sum') ->
 
-    f = (arr) ->
+    f = (t) ->
       sum = 0
-      for row in arr
-        v = row.get col
-        if _.isValid v
-          sum += v
+      for v in t.all(col)
+        sum += v if _.isValid v
       sum
     {
       alias: alias
@@ -112,23 +124,3 @@ class data.ops.Aggregate extends data.Table
       type: data.Schema.numeric
       col: col
     }
-        
-
-  # @param col column name of list of column names
-  @sum: (col, alias='sum') ->
-
-    f = (arr) ->
-      sum = 0
-      for row in arr
-        v = row.get col
-        if _.isValid v
-          sum += v
-      sum
-    {
-      alias: alias
-      f: f
-      type: data.Schema.numeric
-      col: col
-    }
-        
-

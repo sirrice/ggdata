@@ -15,6 +15,8 @@ class data.ops.OrderBy extends data.Table
           return -1 * reverse
       return 0
 
+  nrows: -> @table.nrows()
+
   iterator: ->
     class Iter
       constructor: (@table, @cmp) ->

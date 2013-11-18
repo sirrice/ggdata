@@ -1,6 +1,22 @@
 
 
 class data.ops.Util 
+  # @param cols object of { colname: list of values }
+  @cross_: (cols, tabletype=null) ->
+    if _.size(cols) == 0
+      return [{}]
+    rows = []
+    col = _.first _.keys cols
+    data = cols[col]
+    cols = _.omit cols, col
+    for v, idx in data
+      for subrow in @cross_ cols
+        row = {}
+        row[col] = v
+        _.extend row, subrow
+        rows.push row
+    return rows
+
 
   #
   # build hash table based on equality of columns

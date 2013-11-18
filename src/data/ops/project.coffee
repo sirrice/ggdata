@@ -53,6 +53,8 @@ class data.ops.Project extends data.Table
     types = _.flatten _.map(@mappings, (desc) -> desc.type)
     @schema = new data.Schema cols, types
 
+  nrows: -> @table.nrows()
+
   iterator: ->
     class Iter
       constructor: (@schema, @table, @mappings) ->

@@ -15,6 +15,10 @@ class data.ops.Union extends data.Table
       unless @schema.equals table.schema
         throw Error "Union table schemas don't match: #{@schema.toString()}  != #{table.schema.toString()}"
 
+  nrows: -> 
+    nrowsArr = _.map @tables, (t) -> t.nrows()
+    _.reduce nrowsArr, ((a,b)->a+b), 0
+
   iterator: ->
     class Iter
       constructor: (@schema, @tables) ->

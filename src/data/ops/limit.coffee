@@ -4,6 +4,9 @@ class data.ops.Limit extends data.Table
   constructor: (@table, @n) ->
     @schema = @table.schema
 
+  nrows: ->
+    Math.min @table.nrows(), @n
+
   iterator: ->
     class Iter
       constructor: (@table, @n) ->

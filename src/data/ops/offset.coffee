@@ -4,6 +4,8 @@ class data.ops.Offset extends data.Table
   constructor: (@table, @n) ->
     @schema = @table.schema
 
+  nrows: -> Math.max 0, @table.nrows() - @n
+
   iterator: ->
     class Iter
       constructor: (@table, @n) ->

@@ -36,10 +36,10 @@ checks =
         t.aggregate [
           {
             alias: ['c', 's']
-            f: (arr) ->
-              vals = _.map(arr, (o)->o.get('x'))
+            f: (t) ->
+              vals = t.all 'x'
               {
-                c: arr.length
+                c: vals.length
                 s: _.reduce(vals, ((a,b)->a+b), 0)
               }
             type: data.Schema.numeric
@@ -61,12 +61,22 @@ checks =
           assert.equal row.get('s'), row.get('a')*5+20
           assert.equal row.get('c'), 5
 
-
-
   "union with itself":
     topic: (t) -> t.union t
     "has 20 rows": (t) ->
       assert.equal t.nrows(), 20
+
+  "union with itself 5 times as array":
+    topic: (t) -> t.union _.times(5, ()->t)
+    "has 60 rows": (t) ->
+      assert.equal t.nrows(), 60
+
+
+  "union with itself 5 times as args":
+    topic: (t) -> t.union t,t,t,t,t
+    "has 60 rows": (t) ->
+      assert.equal t.nrows(), 60
+
 
   "limit 2":
     topic: (t) -> t.limit 2
@@ -121,16 +131,10 @@ checks =
         assert.equal t.nrows(), 5
 
  
-
-  "project":
+  "project not extend":
     topic: (t) ->
       t.project [
-        {
-          alias: 'x',
-          f: _.identity
-          cols: 'x'
-          type: data.Schema.numeric
-        }
+        'x'
         {
           alias: 'y'
           f: (x) -> x + 100
@@ -149,11 +153,46 @@ checks =
           type: data.Schema.numeric
           cols: 'x'
         }
-      ]
+      ], no
 
     "values correct": (t) ->
       t.each (row) ->
         x = row.get 'x'
+        assert.equal row.get('a'), null
+        assert.equal row.get('y'), (x+100), "y is wrong #{row.get 'y'} != #{x+100}"
+        assert.equal row.get('z'), (x*100), "z is wrong #{row.get 'z'} != #{x*100}"
+        assert.equal row.get('n'), -x, "n is wrong #{row.get 'n'} != #{-x}"
+        assert.equal row.get('m'), (-x-1000), "m is wrong #{row.get 'm'} != #{-x-1000}"
+
+
+  "project and extend":
+    topic: (t) ->
+      t.project [
+        'x'
+        {
+          alias: 'y'
+          f: (x) -> x + 100
+          cols: 'x'
+          type: data.Schema.numeric
+        }
+        {
+          alias: 'z'
+          f: (row) -> row.get('x') * 100
+          cols: '*'
+          type: data.Schema.numeric
+        }
+        {
+          alias: ['n', 'm']
+          f: (x) -> {n: -x, m: -x-1000}
+          type: data.Schema.numeric
+          cols: 'x'
+        }
+      ], yes
+
+    "values correct": (t) ->
+      t.each (row) ->
+        x = row.get 'x'
+        assert.equal row.get('a'), (x%2)
         assert.equal row.get('y'), (x+100), "y is wrong #{row.get 'y'} != #{x+100}"
         assert.equal row.get('z'), (x*100), "z is wrong #{row.get 'z'} != #{x*100}"
         assert.equal row.get('n'), -x, "n is wrong #{row.get 'n'} != #{-x}"
@@ -165,8 +204,8 @@ checks =
     t2 = data.Table.fromJSON json
 
     assert.deepEqual t.schema.toJSON(), t2.schema.toJSON()
-    rows1 = t.getRows()
-    rows2 = t2.getRows()
+    rows1 = t.all()
+    rows2 = t2.all()
     _.each _.zip(rows1, rows2), ([r1, r2]) ->
       assert.equal r1.get('a'), r2.get('a'), "a's should be equal: #{r1.get('a')} != #{r2.get('a')}"
 
@@ -178,7 +217,7 @@ coltests = topic: -> makeTable(10, 'col')
 _.extend coltests, checks
 
 suite.addBatch
-#"rowtable": rowtests
+  "rowtable": rowtests
   "coltable": coltests
 
 

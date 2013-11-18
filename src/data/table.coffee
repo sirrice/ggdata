@@ -53,13 +53,15 @@ class data.Table
 
   # @override
   nrows: -> 
-    i = 0
-    @each (row) -> i += 1
-    i
+    unless @_nrows?
+      i = 0
+      @each (row) -> i += 1
+      @_nrows = i
+    @_nrows
 
 
   # actually iterate through the iterator and create the rows
-  getRows: -> @each (row) -> row
+  getCol: (col) -> @each (row) -> row.get col
 
   raw: -> @each (row) -> row.raw()
 
@@ -122,6 +124,26 @@ class data.Table
   # Convenience methods that wrap operators
   #
 
+  anyRow: ->
+    iter = @iterator()
+    ret = null
+    ret = iter.next() if iter.hasNext()
+    iter.close()
+    ret
+
+  any: (col=null) ->
+    row = @anyRow()
+    if col?
+      row.get col
+    else
+      row
+
+  all: (col=null) ->
+    if col?
+      @each (row) -> row.get col
+    else
+      @each _.identity
+
   # @param f functiton to run.  takes data.Row, index as input
   # @param n number of rows
   each: (f, n=null) ->
@@ -152,6 +174,9 @@ class data.Table
   filter: (f) ->
     new data.ops.Filter @, f
 
+  distinct: (cols) ->
+    new data.ops.Distinct @, cols
+
   cache: ->
     new data.ops.Cache @
 
@@ -174,20 +199,71 @@ class data.Table
       f: _.identity
     @project mappings
 
-  # Transforms individual columns
+  # Transforms individual columns 
   #
   # @param mappings list of 
   #  { 
-  #    alias:, 
-  #    f:, 
-  #    type: (default: sceham.object)
+  #    alias: 'x', 
+  #    f: (x) -> , 
+  #    type: table.schema.type alias
   #  }
   mapCols: (mappings) ->
-    mappings = _.map mappings, (desc) ->
+    mappings = _.flatten [mappings]
+    mappings = _.map mappings, (desc) =>
+      unless _.isString desc.alias
+        throw Error "alias #{desc.alias} not found"
+      unless @has desc.alias
+        throw Error "mapCol got unknown col #{desc.alias}.  scheam: #{@schema.toString()}"
+      desc.type ?= @schema.type desc.alias
       desc.cols = desc.alias
     @project mappings
 
-  project: (mappings) ->
+  # @param col col name
+  # @param data array of values.  If setting constant, use setColVal
+  setCol: (col, colData, type=null) ->
+    type ?= data.Schema.type colData[0] if colData.length > 0
+    type ?= data.Schema.object
+
+    f = (idx) -> colData[idx] if idx < colData.length 
+        
+    mapping = [
+      {
+        alias: col
+        f: f
+        type: type
+        cols: []
+      }
+    ]
+    @project mapping, yes
+
+  # add or set column to a single constant value
+  setColVal: (col, val, type=null) ->
+    type ?= data.Schema.type val 
+    f = -> val
+    mapping = [
+      {
+        alias: col
+        f: f
+        type: type
+        cols: []
+      }
+    ]
+    @project mapping, yes
+
+  # @param extend keep existing columns (if not overwritten by mappings)?
+  project: (mappings, extend=yes) ->
+    if extend
+      newcols = {}
+      _.each mappings, (desc) ->
+        alias = desc.alias
+        alias = desc if _.isString desc
+        _.each _.flatten([alias]), (newcol) ->
+          newcols[newcol] = yes
+
+      oldcols = _.reject @cols(), (col) -> col of newcols
+      mappings = mappings.concat oldcols
+
+    # allow String mappings as shorthand for "copy exsiting column"
     mappings = _.map mappings, (desc) =>
       if _.isString desc
         unless @has desc
@@ -203,11 +279,16 @@ class data.Table
 
     new data.ops.Project @, mappings
 
-  partition: (cols) ->
-    new data.ops.Partition @, cols
+  # @param alias name of the table column that will store the partitions
+  partition: (cols, alias="table") ->
+    new data.ops.Partition @, cols, alias
 
-  aggregate: (aggs) ->
-    new data.ops.Aggregate @, aggs
+  flatten: ->
+    new data.ops.Flatten @
+
+  # @param alias name of the table column (containing the partitions)
+  aggregate: (aggs, alias=null) ->
+    new data.ops.Aggregate @, aggs, alias
 
   groupby: (cols, aggs) ->
     new data.ops.Aggregate(
