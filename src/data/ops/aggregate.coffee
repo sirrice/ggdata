@@ -89,38 +89,33 @@ class data.ops.Aggregate extends data.Table
   # (@aggs) param in Aggregate.constructor
   #
 
-  @count: (alias="count") ->
-    f = (t) -> 
-      if t?
-        t.nrows()
-      else 
-        0
-    {
-      alias: alias
-      f: f
-      type: data.Schema.numeric
-      col: []
-    }
-
-  @sums: (cols, aliases) ->
-    unless _.isArray alias 
-      alias = []
-    while alias.length < cols.length
-      alias.push "sum#{alias.length}"
-    _.map cols, (col, idx) ->
-      data.ops.Aggregate.sum col, alias[idx]
-
-  # @param col column name of list of column names
-  @sum: (col, alias='sum') ->
-
-    f = (t) ->
-      sum = 0
-      for v in t.all(col)
-        sum += v if _.isValid v
-      sum
+  @agg: (aggtype, alias="agg", col, args...) ->
+    f = switch aggtype 
+      when 'min'
+        (t) -> d3.min t.all(col)
+      when 'max'
+        (t) -> d3.max t.all(col)
+      when 'count', 'cnt'
+        (t) -> t.nrows()
+      when 'sum', 'total'
+        (t) -> d3.sum t.all(col)
+      when 'avg', 'mean', 'average'
+        (t) -> d3.mean t.all(col)
+      when 'median'
+        (t) -> d3.median t.all(col)
+      when 'quantile'
+        k = args[0]
+        (t) ->
+          vals = t.all col
+          vals.sort d3.ascending
+          d3.quantile vals, k
     {
       alias: alias
       f: f
       type: data.Schema.numeric
       col: col
     }
+
+  @count: (alias="count") -> @agg 'count', alias
+  @average: (alias='avg', col) -> @agg 'avg', alias, col
+  @sum: (alias='sum', col) -> @agg 'sum', alias, col

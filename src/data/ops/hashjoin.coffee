@@ -8,6 +8,7 @@ class data.ops.HashJoin extends data.Table
   #          () -> new data.Row(t1.schema/t2.schema)
   #
   constructor: (@t1, @t2, @joincols, @jointype, @leftf=null, @rightf=null) ->
+    @joincols = _.flatten [@joincols]
     @schema = @t1.schema.clone()
     @schema.merge @t2.schema.clone()
     @ensureSchema()

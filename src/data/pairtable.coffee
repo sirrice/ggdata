@@ -71,7 +71,8 @@ class data.PairTable
     new data.PairTable left, right
 
 
-  @union: (pts) ->
+  @union: () ->
+    pts = _.flatten arguments
     lefts = _.map pts, (pt) -> pt.left()
     rights = _.map pts, (pt) -> pt.right()
     new data.PairTable(

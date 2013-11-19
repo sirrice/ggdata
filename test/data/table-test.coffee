@@ -54,7 +54,7 @@ checks =
       topic: (t) ->
         t.aggregate [
           data.ops.Aggregate.count 'c'
-          data.ops.Aggregate.sum 'x', 's'
+          data.ops.Aggregate.sum 's', 'x'
         ]
       "is correct": (t) ->
         t.each (row) ->

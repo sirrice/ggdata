@@ -5,8 +5,10 @@ class data.ops.Union extends data.Table
   # @param arguments are all table or list of tables
   constructor: () ->
     @tables = _.compact _.flatten arguments
-    unless @tables.length > 1
-      throw Error "Union expects >1 tables.  got #{@tables.length}"
+    if @tables.length == 0
+      console.log "[W] Union called with 0 tables."
+      @schema = new data.Schema [], []
+      @tables = [new data.RowTable(@schema)]
     @schema = @tables[0].schema
     @ensureSchema()
 

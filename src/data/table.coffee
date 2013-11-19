@@ -191,13 +191,14 @@ class data.Table
     new data.ops.HashJoin @, table, cols, type
 
   exclude: (cols) ->
+    cols = _.flatten [cols]
     keep = _.reject @cols(), (col) -> col in cols
     mappings = _.map keep, (col) =>
       alias: col
       type: @schema.type col
       cols: col
       f: _.identity
-    @project mappings
+    @project mappings, no
 
   # Transforms individual columns 
   #
@@ -216,7 +217,8 @@ class data.Table
         throw Error "mapCol got unknown col #{desc.alias}.  scheam: #{@schema.toString()}"
       desc.type ?= @schema.type desc.alias
       desc.cols = desc.alias
-    @project mappings
+      desc
+    @project mappings, yes
 
   # @param col col name
   # @param data array of values.  If setting constant, use setColVal
@@ -252,6 +254,8 @@ class data.Table
 
   # @param extend keep existing columns (if not overwritten by mappings)?
   project: (mappings, extend=yes) ->
+    mappings = _.flatten [mappings]
+
     if extend
       newcols = {}
       _.each mappings, (desc) ->

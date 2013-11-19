@@ -56,6 +56,7 @@ build = (callback) ->
     commands.push 'ls build/compiled/*'
     commands.push "#{coffeebin} --output test/js --compile  test/data/*.coffee"
     commands.push 'cp build/compiled/ggdata.js lib/'
+    commands.push 'rm -rf test/js'
 
     async.forEachSeries commands, run, ->
       callback() if callback
