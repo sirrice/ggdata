@@ -8,13 +8,16 @@ class data.ops.HashJoin extends data.Table
   #          () -> new data.Row(t1.schema/t2.schema)
   #
   constructor: (@t1, @t2, @joincols, @jointype, @leftf=null, @rightf=null) ->
+    super
     @joincols = _.flatten [@joincols]
     @schema = @t1.schema.clone()
     @schema.merge @t2.schema.clone()
     @ensureSchema()
     @getkey = (row) -> _.map cols, (col) -> row.get(col)
+    @timer().start 'buildht'
     @ht1 = data.ops.Util.buildHT @t1, @joincols
     @ht2 = data.ops.Util.buildHT @t2, @joincols
+    @timer().stop 'buildht'
 
     # methods to create dummy rows for outer/left/right joins
     schema1 = @t1.schema.clone()
@@ -30,9 +33,11 @@ class data.ops.HashJoin extends data.Table
       unless @t2.schema.has col
         throw Error "joincol #{col} not in right table #{@t2.schema.toString()}"
 
+  children: -> [@t1, @t2]
   iterator: ->
+    timer = @timer()
     class Iter
-      constructor: (@ht1, @ht2, @jointype, @leftf, @rightf) ->
+      constructor: (@schema, @ht1, @ht2, @jointype, @leftf, @rightf) ->
         keys1 = _.keys @ht1
         keys2 = _.keys @ht2
         switch @jointype
@@ -47,6 +52,7 @@ class data.ops.HashJoin extends data.Table
           else
             @keys = _.uniq _.flatten [keys1, keys2]
 
+        timer.start()
         @reset()
 
       reset: -> 
@@ -69,15 +75,7 @@ class data.ops.HashJoin extends data.Table
           left = right = []
           left = @ht1[@key].table if @key of @ht1
           right = @ht2[@key].table if @key of @ht2
-          left = data.Table.fromArray left unless _.isType left, data.Table
-          right = data.Table.fromArray right unless _.isType right, data.Table
-          cross = new data.ops.Cross(
-            left, right,
-            @jointype,
-            @leftf,
-            @rightf
-          )
-          @iter = cross.iterator()
+          @iter = data.ops.Util.crossArrayIter @schema, left, right, @jointype, @leftf, @rightf
           break if @iter.hasNext()
           @iter = null
 
@@ -87,5 +85,6 @@ class data.ops.HashJoin extends data.Table
         @ht1 = @ht2 = null
         @iter.close() if @iter?
         @iter = null
+        timer.stop()
 
-    new Iter @ht1, @ht2, @jointype, @leftf, @rightf
+    new Iter @schema, @ht1, @ht2, @jointype, @leftf, @rightf

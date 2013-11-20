@@ -16,12 +16,14 @@
 #
 # Methods that start with "_" are update in place and return the same table
 #
-
-
 class data.Table
   @ggpackage = "data.Table"
   @log = data.util.Log.logger @ggpackage, "Table"
+  @id: -> data.Table::_id += 1
+  _id: 0
 
+  constructor: ->
+    @id = data.Table.id()
 
   # 
   # Required methods
@@ -31,6 +33,31 @@ class data.Table
 
   # is this columnar or row
   tabletype: -> "col"
+
+  timer: -> 
+    unless @_timer?
+      @_timer = new data.util.Timer()    
+    @_timer
+
+  timings: (name) -> @timer().timings name
+
+  # the tables accessed by this table
+  children: -> []
+  graph: (f=null)-> 
+    f ?= (n)->"#{n.constructor.name}:#{n.id} (#{n.timer().avg()})"
+    @_graph(f).join("\n")
+
+
+  _graph: (f) ->
+    if @children().length == 0
+      [f(@)]
+    else
+      ret = [f(@)]
+      for c in @children()
+        for line in c._graph(f)
+          line = " #{line}"
+          ret.push line
+      ret
 
 
   # 
@@ -55,15 +82,17 @@ class data.Table
   nrows: -> 
     unless @_nrows?
       i = 0
-      @each (row) -> i += 1
+      iter = @iterator()
+      while iter.hasNext()
+        i += 1
+        iter.next()
+      iter.close()
       @_nrows = i
     @_nrows
 
 
   # actually iterate through the iterator and create the rows
   getCol: (col) -> @each (row) -> row.get col
-
-  raw: -> @each (row) -> row.raw()
 
 
   toJSON: ->
@@ -124,15 +153,13 @@ class data.Table
   # Convenience methods that wrap operators
   #
 
-  anyRow: ->
-    iter = @iterator()
-    ret = null
-    ret = iter.next() if iter.hasNext()
-    iter.close()
-    ret
-
   any: (col=null) ->
-    row = @anyRow()
+    iter = @iterator()
+    row = null
+    row = iter.next() if iter.hasNext()
+    iter.close()
+    return row unless row?
+
     if col?
       row.get col
     else
@@ -140,13 +167,17 @@ class data.Table
 
   all: (col=null) ->
     if col?
-      @each (row) -> row.get col
+      ret = []
+      @each (row) -> ret.push(row.get col)
+      ret
     else
-      @each _.identity
+      @map (row) -> row.clone()
+
+  raw: -> @map (row) -> row.raw()
 
   # @param f functiton to run.  takes data.Row, index as input
   # @param n number of rows
-  each: (f, n=null) ->
+  map: (f, n=null) ->
     iter = @iterator()
     idx = 0
     ret = []
@@ -157,7 +188,15 @@ class data.Table
     iter.close()
     ret
 
-  fastEach: (f, n) -> @each f, n
+  # each, doesn't return anything!
+  each: (f, n) -> 
+    iter = @iterator()
+    idx = 0
+    while iter.hasNext()
+      f iter.next(), idx
+      idx += 1
+      break if n? and idx >= n
+    iter.close()
 
   limit: (n) ->
     new data.ops.Limit @, n
@@ -187,8 +226,8 @@ class data.Table
   cross: (table) ->
     new data.ops.Cross @, table, 'outer'
 
-  join: (table, cols, type="outer") ->
-    new data.ops.HashJoin @, table, cols, type
+  join: (table, cols, type="outer", leftf, rightf) ->
+    new data.ops.HashJoin @, table, cols, type, leftf, rightf
 
   exclude: (cols) ->
     cols = _.flatten [cols]

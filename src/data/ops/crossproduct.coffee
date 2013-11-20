@@ -1,11 +1,13 @@
 class data.ops.Cross extends data.Table
   constructor: (@left, @right, @jointype, @leftf=null, @rightf=null) ->
+    super
     @schema = @left.schema.clone()
     @schema.merge @right.schema.clone()
     @setup()
 
 
   setup: ->
+    @timer().start 'setup'
     defaultf = -> new data.Row(new data.Schema)
     @leftf ?= defaultf
     @rightf ?= defaultf
@@ -37,15 +39,21 @@ class data.ops.Cross extends data.Table
         else unless rhasRows
           @right = data.Table.fromArray([@rightf()], @right.schema) 
 
+    @timer().stop 'setup'
+
   nrows: -> @left.nrows() * @right.nrows()
+  children: -> [@left, @right]
           
   iterator: ->
+    timer = @timer()
     class Iter
-      constructor: (@left, @right) ->
+      constructor: (@schema, @left, @right) ->
+        @_row = new data.Row @schema
         @liter = @left.iterator()
-        @riter = @right.iterator()
+        @riter = @right.cache().iterator()
         @lrow = null
         @reset()
+        timer.start()
 
       reset: ->
         @liter.reset()
@@ -53,14 +61,16 @@ class data.ops.Cross extends data.Table
 
       next: ->
         throw Error("iterator has no more elements") unless @hasNext()
-        @lrow.clone().merge @riter.next()
+        @_row.steal(@lrow).steal(@riter.next())
 
       hasNext: ->
         @lrow = null unless @riter.hasNext()
 
         while @liter.hasNext() and not(@lrow? and @riter.hasNext())
+          timer.end 'innerloop'
           @riter.reset()
           @lrow = @liter.next()
+          timer.start 'innerloop'
 
         @lrow? and @riter.hasNext()
 
@@ -68,7 +78,8 @@ class data.ops.Cross extends data.Table
         @left = @right = null
         @liter.close()
         @riter.close()
+        timer.stop()
 
-    new Iter @left, @right
+    new Iter @schema, @left, @right
 
 

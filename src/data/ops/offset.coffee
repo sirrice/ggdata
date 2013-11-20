@@ -2,16 +2,20 @@
 
 class data.ops.Offset extends data.Table
   constructor: (@table, @n) ->
+    super
     @schema = @table.schema
 
   nrows: -> Math.max 0, @table.nrows() - @n
+  children: -> [@table]
 
   iterator: ->
+    timer = @timer()
     class Iter
       constructor: (@table, @n) ->
         @schema = @table.schema
         @iter = @table.iterator()
         @_next = null
+        timer.start()
         @reset()
 
       reset: -> 
@@ -30,6 +34,7 @@ class data.ops.Offset extends data.Table
       close: -> 
         @table = null
         @iter.close()
+        timer.stop()
 
     new Iter @table, @n
 

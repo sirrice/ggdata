@@ -6,4 +6,5 @@ class data.ops.Serialize
 
 class data.ops.Deserialize
   constructor: (string, type) ->
+    super
     return null

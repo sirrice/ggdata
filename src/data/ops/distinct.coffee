@@ -2,16 +2,20 @@
 
 class data.ops.Distinct extends data.Table
   constructor: (@table, @uniqCols=null) ->
+    super
     @schema = @table.schema
     @uniqCols ?= @schema.cols
 
+  children: -> [@table]
   iterator: ->
+    timer = @timer()
     class Iter
       constructor: (@table, @cols) ->
         @schema = @table.schema
         @iter = @table.iterator()
         @seen = {}
         @_next = null
+        timer.start()
 
       reset: -> 
         @iter.reset()
@@ -39,6 +43,7 @@ class data.ops.Distinct extends data.Table
         @table = null
         @iter.close()
         @seen = {}
+        timer.stop()
 
     new Iter @table, @uniqCols
 

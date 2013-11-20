@@ -2,6 +2,7 @@
 
 class data.ops.Flatten extends data.Table
   constructor: (@table) ->
+    super
     @schema = @table.schema
     tablecols = _.filter @schema.cols, (col) =>
       @schema.type(col) == data.Schema.table
@@ -10,7 +11,7 @@ class data.ops.Flatten extends data.Table
       @schema.type(col) == data.Schema.table
     otherSchema = @schema.project othercols
 
-    newtables = @table.each (row) ->
+    newtables = @table.map (row) ->
       lefto = _.o2map othercols, (col) ->
         [col, row.get(col)]
       left = data.Table.fromArray [lefto], otherSchema
@@ -20,4 +21,5 @@ class data.ops.Flatten extends data.Table
     @iter = new data.ops.Union newtables
 
   nrows: -> @iter.nrows()
+  children: -> [@table]
   iterator: -> @iter.iterator()

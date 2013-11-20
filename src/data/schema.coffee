@@ -50,7 +50,7 @@ class data.Schema
     cols = _.compact _.flatten [cols]
     types = _.map cols, (col) => 
       unless @has col
-        throw Error("col #{col} not in schema")
+        data.util.Log.warn ("[W] Schema: col #{col} not in schema")
       @types[@index col]
     new data.Schema(cols, types)
 

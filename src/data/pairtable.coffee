@@ -37,7 +37,7 @@ class data.PairTable
     left = @left().partition(cols, 'left')
     right = @right().partition(cols, 'right')
     pairs = left.join right, cols, type
-    pairs.each (row) => 
+    pairs.map (row) => 
       new data.PairTable row.get('left'), row.get('right')
 
   # partition on _all_ of the shared columns
@@ -66,8 +66,22 @@ class data.PairTable
     newrSchema.merge left.schema.project(restCols)
 
     right = left.project(restCols, no).distinct().cross(right)
-    distinctleft = left.project(cols, no).distinct()
-    right = distinctleft.join(right, cols, 'left')
+    pt = new data.PairTable left, right
+    lefts = []
+    rights = []
+    for partition in pt.partition(restCols)
+      right = partition.right()
+      leftpartitions = partition.left().partition(cols).all('table')
+
+      for lp in leftpartitions
+        lefts.push lp
+        if right.nrows() == 0
+          rights.push new data.RowTable(newrSchema)
+        else
+          rights.push right
+
+    left = new data.ops.Union lefts
+    right = new data.ops.Union rights
     new data.PairTable left, right
 
 

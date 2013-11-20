@@ -24,42 +24,57 @@ class data.ops.Project extends data.Table
   #     { alias: 'x', f: (x) -> x+10, cols: 'x' }
   #
   constructor: (@table, @mappings) ->
+    super
     @mappings = _.compact _.flatten [@mappings]
-    @mappings = _.map @mappings, (desc) =>
-      throw Error("mapping must has an alias: #{desc}") unless desc.alias?
-      desc.cols ?= '*'
-      desc.cols = _.flatten [desc.cols] unless desc.cols == '*'
-      desc.type ?= data.Schema.object
-      if _.isArray desc.alias
-        if _.isArray desc.type
-          unless desc.type.lenghth == desc.alias.length
-            throw Error "alias and type lens don't match: #{desc.alias} != #{desc.type}"
-        else
-          desc.type = _.times desc.alias.length, () -> desc.type
-
-      if desc.cols != '*' and _.isArray desc.cols
-        desc.f = ((f, cols) ->
-          (row, idx) ->
-            args = _.map cols, (col) -> row.get(col)
-            args.push idx
-            f.apply f, args
-          )(desc.f, desc.cols)
-      else
-        desc.cols = _.clone @table.schema.cols
-
-      desc
-
+    @mappings = data.ops.Project.normalizeMappings @mappings, @table.cols()
     cols = _.flatten _.map(@mappings, (desc) -> desc.alias)
     types = _.flatten _.map(@mappings, (desc) -> desc.type)
     @schema = new data.Schema cols, types
 
+  @normalizeMappings: (mappings, allcols) ->
+    _.map mappings, (desc) ->
+      data.ops.Project.normalizeMapping desc, allcols
+
+  @normalizeMapping: (desc, allcols) ->
+    throw Error("mapping must has an alias: #{desc}") unless desc.alias?
+    desc = _.clone desc
+    desc.cols ?= desc.col
+    desc.cols ?= '*'
+    desc.cols = _.flatten [desc.cols] unless desc.cols == '*'
+    desc.type ?= data.Schema.object
+
+    if _.isArray desc.alias
+      if _.isArray desc.type
+        unless desc.type.lenghth == desc.alias.length
+          throw Error "alias and type lens don't match: #{desc.alias} != #{desc.type}"
+      else
+        desc.type = _.times desc.alias.length, () -> desc.type
+
+    if desc.cols != '*' and _.isArray desc.cols
+      desc.f = ((f, cols) ->
+        (row, idx) ->
+          args = _.map cols, (col) -> row.get(col)
+          args.push idx
+          f.apply f, args
+        )(desc.f, desc.cols)
+    else
+      desc.cols = _.clone(allcols)
+    desc
+
+
+
+
   nrows: -> @table.nrows()
+  children: -> [@table]
 
   iterator: ->
+    timer = @timer()
     class Iter
       constructor: (@schema, @table, @mappings) ->
+        @_row = new data.Row @schema
         @iter = @table.iterator()
         @idx = -1
+        timer.start()
 
       reset: -> 
         @iter.reset()
@@ -68,19 +83,21 @@ class data.ops.Project extends data.Table
       next: ->
         @idx += 1
         row = @iter.next()
-        newrow = new data.Row @schema
+        @_row.reset()
         for desc in @mappings
           if _.isArray desc.alias
             o = desc.f row, @idx
             for col in desc.alias
-              newrow.set col, o[col]
+              @_row.set col, o[col]
           else
             val = desc.f row, @idx
-            newrow.set desc.alias, val
-        newrow
+            @_row.set desc.alias, val
+        @_row
 
       hasNext: -> @iter.hasNext()
-      close: -> @iter.close()
+      close: -> 
+        @iter.close()
+        timer.stop()
     new Iter @schema, @table, @mappings
 
 

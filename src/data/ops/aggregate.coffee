@@ -13,6 +13,7 @@ class data.ops.Aggregate extends data.Table
   #        will try to sniff it out
   # XXX: support incremental aggs
   constructor: (@table, @aggs, @alias=null) ->
+    super
     @alias ?= @sniffAlias()
     @schema = @table.schema
     unless @schema.has @alias
@@ -30,12 +31,16 @@ class data.ops.Aggregate extends data.Table
 
 
   nrows: -> @table.nrows()
+  children: -> [@table]
 
   iterator: ->
+    timer = @timer()
     class Iter
       constructor: (@schema, @table, @aggs, @tablealias) ->
+        @_row = new data.Row @schema
         @iter = @table.iterator()
         @idx = -1
+        timer.start()
 
       reset: -> 
         @iter.reset()
@@ -44,20 +49,22 @@ class data.ops.Aggregate extends data.Table
       next: ->
         @idx += 1
         row = @iter.next()
-        newrow = row.project @schema
+        @_row.steal row
 
         for agg in @aggs
           if _.isArray agg.alias
             o = agg.f row.get(@tablealias), @idx
             for col in agg.alias
-              newrow.set col, o[col]
+              @_row.set col, o[col]
           else
             val = agg.f row.get(@tablealias), @idx
-            newrow.set agg.alias, val
-        newrow
+            @_row.set agg.alias, val
+        @_row
 
       hasNext: -> @iter.hasNext()
-      close: -> @iter.close()
+      close: -> 
+        @iter.close()
+        timer.stop()
 
     new Iter @schema, @table, @aggs, @alias
 

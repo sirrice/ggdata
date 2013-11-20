@@ -3,23 +3,36 @@ us = require "underscore"
 assert = require "assert"
 
 
-rows = _.times 10, (i) -> { a: i%2, x: i}
+rows = _.times 1000, (i) -> { a: i%2, x: i}
 t = data.fromArray rows, null, 'col'
 
 
 print = (t1) ->
   console.log t1.schema.toString()
-  console.log t1.raw()
+  console.log t1.raw()[0]
+  console.log "timings: #{t1.timings()}"
   console.log "\n"
 
+print t
+
+console.log "join"
 print t.join t, ['a', 'x']
 
+console.log "cross"
+cross = t.cross t
+cache = cross.cache()
+console.log cross.timings()
+console.log cross.timings('setup')
+console.log cross.timer().avg('innerloop')
+print cross
+console.log "cache"
+console.log cache.graph()
+
+console.log "distinct"
 print t.distinct ['a']
 
 md = data.fromArray [
-  {x: 0, scale: 1, foo: 1}
-  {x: 1, scale: 1, foo: 1}
-  {x: 2, scale: 1, foo: 1}
+  { z: 9 }
 ]
 
 pt = new data.PairTable t, md
@@ -28,19 +41,7 @@ pt = pt.ensure 'a'
 console.log "pt.ensure"
 print pt.right()
 print pt.ensure('a').right()
-
-
-console.log "full partition"
-print pt.fullPartition()[0].right()
-
-console.log "partition on a,x"
-_.map pt.ensure('a').partition(['a']), (pt) ->
-  print pt.right()
-
-print t.partition('a').flatten('a')
-as = t.project('a', no).distinct('a')
-print  t.partition(['a', 'x']).join(as.cross(md, 'a'), ['a', 'x'], 'left').project(['a', 'x', 'scale', 'foo'], no)
-
+console.log pt.right().timings()
 
 
 ###
@@ -55,3 +56,4 @@ print new data.ops.Cross t, t2
 
 print t.cross t2
 ###
+

@@ -2,9 +2,10 @@
 
 class data.ops.OrderBy extends data.Table
 
-  constructor: (@table, @cols, @reverse=no) ->
+  constructor: (@table, @sortCols, @reverse=no) ->
+    super
     @schema = @table.schema
-    cols = _.flatten [@cols]
+    cols = _.flatten [@sortCols]
     reverse = if @reverse then -1 else 1
     @cmp = (r1, r2) ->
       for col in cols
@@ -16,14 +17,16 @@ class data.ops.OrderBy extends data.Table
       return 0
 
   nrows: -> @table.nrows()
+  children: -> [@table]
 
   iterator: ->
+    timer = @timer()
     class Iter
       constructor: (@table, @cmp) ->
         @rows = null
         @schema = @table.schema
-        @iter = @table.iterator()
         @idx = 0
+        timer.start()
 
       reset: -> 
         @idx = 0
@@ -35,15 +38,13 @@ class data.ops.OrderBy extends data.Table
 
       hasNext: -> 
         unless @rows?
-          @rows = []
-          while @iter.hasNext()
-            @rows.push @iter.next()
+          @rows = @table.all()
           @rows.sort @cmp
         @idx < @rows.length
 
       close: -> 
         @table = null
         @rows = null
-        @iter.close()
+        timer.stop()
 
     new Iter @table, @cmp

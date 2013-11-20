@@ -1,11 +1,32 @@
-class data.ops.Cache
+#<< data/table
+
+class data.ops.Cache extends data.Table
   constructor: (@table) ->
-    @_cache = null
+    super
     @schema = @table.schema
+    timer = @timer()
+    @_rows = @table.all()
+    timer.stop()
+
+  nrows: -> @_rows.length
+  children: -> [@table]
 
   iterator: ->
-    unless @_cache?
-      @_cache = prov.data.Table.fromArray @table.rows(), @schema
-    @_cache.iterator()
+    class Iter
+      constructor: (@rows) ->
+        @idx = 0
+
+      reset: -> @idx = 0
+
+      next: ->
+        throw Error "iterator has no more items" unless @hasNext()
+        @idx += 1
+        @rows[@idx-1]
+
+      hasNext: -> @idx < @rows.length
+
+      close: -> 
+        @rows = null
+    new Iter @_rows
 
   

@@ -2,14 +2,19 @@
 
 class data.ops.Filter extends data.Table
   constructor: (@table, @f) ->
+    super
     @schema = @table.schema
 
+  children: -> [@table]
+
   iterator: ->
+    timer = @timer()
     class Iter
       constructor: (@table, @f) ->
         @schema = @table.schema
         @iter = @table.iterator()
         @_next = null
+        timer.start()
 
       reset: -> @iter.reset()
       next: -> 
@@ -30,6 +35,7 @@ class data.ops.Filter extends data.Table
       close: -> 
         @table = null
         @iter.close()
+        timer.stop()
 
     new Iter @table, @f
 

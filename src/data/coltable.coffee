@@ -6,6 +6,7 @@ class data.ColTable extends data.Table
 
 
   constructor: (@schema, @colDatas=null) ->
+    super
     @colDatas ?= _.times @schema.ncols(), ()->[]
     @log = data.Table.log
 
@@ -14,12 +15,14 @@ class data.ColTable extends data.Table
   ncols: -> @colDatas.length
 
   iterator: ->
+    timer = @timer()
     class Iter
       constructor: (@table) ->
         @colDatas = @table.colDatas
         @schema = @table.schema
         @nrows = @table.nrows()
         @idx = 0
+        timer.start()
       reset: -> @idx = 0
       next: ->
         throw Error("no more elements.  idx=#{@idx}") unless @hasNext()
@@ -27,7 +30,9 @@ class data.ColTable extends data.Table
         rowData = _.map @colDatas, (cd) => cd[@idx-1]
         new data.Row @schema, rowData
       hasNext: -> @idx < @nrows
-      close: -> @table = @schema = null
+      close: -> 
+        @table = @schema = null
+        timer.stop()
     new Iter @
 
   # more efficient version of each, allocates single

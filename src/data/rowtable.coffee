@@ -5,6 +5,7 @@ class data.RowTable extends data.Table
   @ggpackage = "data.RowTable"
 
   constructor: (@schema, rows=[]) ->
+    super
     throw Error("schema not present") unless @schema?
     rows ?= []
     @rows = []
@@ -15,18 +16,24 @@ class data.RowTable extends data.Table
   tabletype: -> "row"
 
   iterator: ->
+    timer = @timer()
     class Iter
       constructor: (@table) ->
         @schema = @table.schema
+        @_row = new data.Row @schema
         @nrows = @table.nrows()
         @idx = 0
+        timer.start()
       reset: -> @idx = 0
       next: ->
         throw Error("no more elements.  idx=#{@idx}") unless @hasNext()
         @idx += 1
-        new data.Row @schema, @table.rows[@idx-1]
+        @_row.data = @table.rows[@idx-1]
+        @_row
       hasNext: -> @idx < @nrows
-      close: -> @table = @schema = null
+      close: -> 
+        @table = @schema = null
+        timer.stop()
     new Iter @
 
 

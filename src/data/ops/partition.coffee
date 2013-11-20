@@ -3,29 +3,32 @@
 class data.ops.Partition extends data.Table
 
   constructor: (@table, @cols, @alias='table') ->
+    super
     @cols = _.flatten [@cols]
     @schema = @table.schema.project @cols
     @schema.addColumn @alias, data.Schema.table
 
-
+  children: -> [@table]
   iterator: ->
+    timer = @timer()
     class Iter
       constructor: (@schema, @table, @cols, @alias) ->
+        @_row = new data.Row @schema
         @idx = 0
+        timer.start()
 
       reset: -> 
         @idx = 0
 
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()
-        row = new data.Row @schema
         htrow = @ht[@idx]
         @idx += 1
         for col, idx in @cols
-          row.set col, htrow.key[idx]
+          @_row.set col, htrow.key[idx]
         partition = data.Table.fromArray htrow.table, @table.schema
-        row.set @alias, partition
-        row
+        @_row.set @alias, partition
+        @_row
 
       hasNext: -> 
         unless @ht?
@@ -34,6 +37,7 @@ class data.ops.Partition extends data.Table
 
       close: -> 
         @table = null
+        timer.stop()
 
     new Iter @schema, @table, @cols, @alias
 
