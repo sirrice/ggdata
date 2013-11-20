@@ -51,7 +51,8 @@ class data.ops.Cross extends data.Table
         @_row = new data.Row @schema
         @liter = @left.iterator()
         @riter = @right.cache().iterator()
-        @lrow = null
+        @lrow = new data.Row @left.schema
+        @needNext = yes
         @reset()
         timer.start()
 
@@ -61,18 +62,23 @@ class data.ops.Cross extends data.Table
 
       next: ->
         throw Error("iterator has no more elements") unless @hasNext()
-        @_row.steal(@lrow).steal(@riter.next())
+        @_row.reset()
+        @_row.steal(@lrow)
+        @_row.steal(@riter.next())
+        @_row
 
       hasNext: ->
-        @lrow = null unless @riter.hasNext()
+        @needNext = yes unless @riter.hasNext()
 
-        while @liter.hasNext() and not(@lrow? and @riter.hasNext())
+        while @liter.hasNext() and (@needNext or not @riter.hasNext())
           timer.end 'innerloop'
           @riter.reset()
-          @lrow = @liter.next()
+          @lrow.reset()
+          @lrow.steal @liter.next()
+          @needNext = no
           timer.start 'innerloop'
 
-        @lrow? and @riter.hasNext()
+        not(@needNext) and @riter.hasNext()
 
       close: ->
         @left = @right = null

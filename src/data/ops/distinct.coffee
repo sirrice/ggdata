@@ -14,7 +14,8 @@ class data.ops.Distinct extends data.Table
         @schema = @table.schema
         @iter = @table.iterator()
         @seen = {}
-        @_next = null
+        @_next = new data.Row @schema
+        @needNext = yes
         timer.start()
 
       reset: -> 
@@ -23,21 +24,22 @@ class data.ops.Distinct extends data.Table
 
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()?
-        ret = @_next
-        @_next = null
-        ret
+        @needNext = yes
+        @_next
 
       hasNext: -> 
-        return true if @_next?
+        return true unless @needNext
         while @iter.hasNext()
           row = @iter.next()
           vals = _.map @cols, (col) -> row.get(col)
           key = _.hashCode JSON.stringify vals
           unless key of @seen
             @seen[key] = null
-            @_next = row
+            @_next.reset()
+            @_next.steal row
+            @needNext = no
             break
-        @_next?
+        not @needNext
 
       close: -> 
         @table = null
