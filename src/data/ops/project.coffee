@@ -30,18 +30,56 @@ class data.ops.Project extends data.Table
     cols = _.flatten _.map(@mappings, (desc) -> desc.alias)
     types = _.flatten _.map(@mappings, (desc) -> desc.type)
     @schema = new data.Schema cols, types
+    @inferUnknownCols()
+
+  inferUnknownCols: ->
+    mappings = _.filter @mappings, (desc) -> desc.type == data.Schema.unknown
+    cols = _.flatten _.map mappings, (desc) -> desc.alias
+    colVals = _.o2map cols, (col) -> [col, []]
+
+    # get a sample of 5 rows
+    sample = @table.limit(2)
+
+    rows = []
+    sample.each (row, idx) ->
+      o = {}
+      _.each mappings, (desc) ->
+        v = desc.f row, idx
+        if _.isArray desc.alias
+          for col in desc.alias
+            o[col] = v[col]
+            colVals[col].push v[col]
+        else
+          col = desc.alias
+          o[col] = v
+          colVals[col].push v
+      rows.push o
+
+    schema = data.Schema.infer rows
+    for col in cols
+      types = _.map colVals[col], (v) -> data.Schema.type v
+      type = d3.max types
+      @schema.setType col, type unless type == data.Schema.unknown
+
+
 
   @normalizeMappings: (mappings, allcols) ->
     _.map mappings, (desc) ->
       data.ops.Project.normalizeMapping desc, allcols
 
+  # ensure that the projection description has all attributes:
+  #   cols
+  #   type
+  #   f
+  # 
+  # assumes alias exists
   @normalizeMapping: (desc, allcols) ->
     throw Error("mapping must has an alias: #{desc}") unless desc.alias?
     desc = _.clone desc
     desc.cols ?= desc.col
     desc.cols ?= '*'
     desc.cols = _.flatten [desc.cols] unless desc.cols == '*'
-    desc.type ?= data.Schema.object
+    desc.type ?= data.Schema.unknown
 
     if _.isArray desc.alias
       if _.isArray desc.type

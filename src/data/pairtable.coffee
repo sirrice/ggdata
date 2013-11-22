@@ -34,11 +34,16 @@ class data.PairTable
   # create a list of pairtables.  one for each partition
   partition: (cols, type='outer') ->
     cols = _.flatten [cols]
+    cols = _.intersection cols, @sharedCols()
     left = @left().partition(cols, 'left')
     right = @right().partition(cols, 'right')
     pairs = left.join right, cols, type
-    pairs.map (row) -> 
-      new data.PairTable row.get('left'), row.get('right')
+    pairs.map (row) => 
+      l = row.get 'left'
+      l = new data.RowTable(@left().schema) unless l?
+      r = row.get 'right'
+      r = new data.RowTable(@right().schema) unless r?
+      new data.PairTable l, r
 
   # partition on _all_ of the shared columns
   # 
@@ -65,13 +70,33 @@ class data.PairTable
 
     newrSchema = right.schema.clone()
     newrSchema.merge left.schema.project(restCols)
+    cols = _.map cols, (col) =>
+      if left.has col
+        col
+      else
+        {
+          alias: col
+          f: () -> null
+          type: data.Schema.ordinal
+          cols: []
+        }
+
 
     rights = []
     for p in @partition sharedCols
       l = p.left()
-      ldistinct = l.project(restCols, no).distinct()
-      r = ldistinct.cross(p.right())
+      r = p.right()
+      if r.nrows() > 0
+        createcopy = ((r) -> () -> r.all())(r)
+      else if right.nrows() > 0
+        createcopy = ((r) -> () -> [r.any().clone()])(right)
+      else
+        createcopy = () -> [new data.Row newrSchema]
+        
+      ldistinct = l.project(cols, no).distinct()
+      r = ldistinct.cross(p.right(), 'outer', null, createcopy)
       rights.push r
+
 
     right = new data.ops.Union rights
     new data.PairTable left, right

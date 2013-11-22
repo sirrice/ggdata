@@ -18,26 +18,24 @@ class data.ops.Cross extends data.Table
     liter.close()
     riter.close()
 
+    rrows = _.flatten [@rightf()]
+    lrows = _.flatten [@leftf()]
     switch @jointype
       when "left"
         unless rhasRows
-          @right = data.Table.fromArray([@rightf()], @right.schema) 
+          @right = data.Table.fromArray(rrows, @right.schema) 
           
       when "right"
         unless lhasRows
-          tmp = @left
           @left = @right
-          @right = tmp
-          @right = data.Table.fromArray([@leftf()], @left.schema) 
+          @right = data.Table.fromArray(lrows, @left.schema) 
 
       when "outer"
         unless lhasRows
-          tmp = @left
           @left = @right
-          @right = tmp
-          @right = data.Table.fromArray([@leftf()], @left.schema) 
+          @right = data.Table.fromArray(lrows, @left.schema) 
         else unless rhasRows
-          @right = data.Table.fromArray([@rightf()], @right.schema) 
+          @right = data.Table.fromArray(rrows, @right.schema) 
 
     @timer().stop 'setup'
 
@@ -62,9 +60,10 @@ class data.ops.Cross extends data.Table
 
       next: ->
         throw Error("iterator has no more elements") unless @hasNext()
+        rrow = @riter.next()
         @_row.reset()
         @_row.steal(@lrow)
-        @_row.steal(@riter.next())
+        @_row.steal(rrow)
         @_row
 
       hasNext: ->

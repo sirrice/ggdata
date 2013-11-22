@@ -37,7 +37,7 @@ class data.ops.HashJoin extends data.Table
   iterator: ->
     timer = @timer()
     class Iter
-      constructor: (@schema, @ht1, @ht2, @jointype, @leftf, @rightf) ->
+      constructor: (@schema, @lschema, @rschema, @ht1, @ht2, @jointype, @leftf, @rightf) ->
         keys1 = _.keys @ht1
         keys2 = _.keys @ht2
         switch @jointype
@@ -72,9 +72,14 @@ class data.ops.HashJoin extends data.Table
         while @iter is null and @keyidx < @keys.length
           @keyidx += 1
           @key = @keys[@keyidx]
-          left = right = []
-          left = @ht1[@key].table if @key of @ht1
-          right = @ht2[@key].table if @key of @ht2
+          if @key of @ht1
+            left = @ht1[@key].table 
+          else
+            left = new data.RowTable @lschema
+          if @key of @ht2
+            right = @ht2[@key].table 
+          else
+            right = new data.RowTable @rschema
           @iter = data.ops.Util.crossArrayIter @schema, left, right, @jointype, @leftf, @rightf
           break if @iter.hasNext()
           @iter = null
@@ -87,4 +92,4 @@ class data.ops.HashJoin extends data.Table
         @iter = null
         timer.stop()
 
-    new Iter @schema, @ht1, @ht2, @jointype, @leftf, @rightf
+    new Iter @schema, @t1.schema, @t2.schema, @ht1, @ht2, @jointype, @leftf, @rightf

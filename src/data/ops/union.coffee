@@ -14,9 +14,14 @@ class data.ops.Union extends data.Table
     @ensureSchema()
 
   ensureSchema: ->
-    for table in @tables
+    for table, idx in @tables
       unless @schema.equals table.schema
-        throw Error "Union table schemas don't match: #{@schema.toString()}  != #{table.schema.toString()}"
+        schemahas = _.reject @schema.cols, (col) -> table.has col
+        tablehas = _.reject table.cols, (col) => @schema.has col
+        if tablehas.length > 0
+          console.log "Union contains cols table #{idx} doesn't have: #{schemahas}"
+          console.log "table #{idx} contains cols Union doesn't have: #{tablehas}"
+          throw Error "Union table schemas don't match: #{@schema.toString()}  != #{table.schema.toString()}"
 
   nrows: -> 
     nrowsArr = _.map @tables, (t) -> t.nrows()
@@ -27,6 +32,7 @@ class data.ops.Union extends data.Table
     timer = @timer()
     class Iter
       constructor: (@schema, @tables) ->
+        @_row = new data.Row @schema
         @reset()
 
       reset: -> 
@@ -36,7 +42,7 @@ class data.ops.Union extends data.Table
 
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()
-        @iter.next()
+        @_row.steal @iter.next()
 
       hasNext: -> 
         if @tableidx >= @tables.length

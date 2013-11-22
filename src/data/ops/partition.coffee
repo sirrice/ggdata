@@ -5,7 +5,7 @@ class data.ops.Partition extends data.Table
   constructor: (@table, @cols, @alias='table') ->
     super
     @cols = _.flatten [@cols]
-    @schema = @table.schema.project @cols
+    @schema = @table.schema.clone()#.project @cols
     @schema.addColumn @alias, data.Schema.table
 
   children: -> [@table]
@@ -24,9 +24,12 @@ class data.ops.Partition extends data.Table
         throw Error("iterator has no more elements") unless @hasNext()
         htrow = @ht[@idx]
         @idx += 1
+        @_row.reset()
         for col, idx in @cols
           @_row.set col, htrow.key[idx]
         partition = data.Table.fromArray htrow.table, @table.schema
+        if partition.nrows() > 0
+          @_row.steal partition.any()
         @_row.set @alias, partition
         @_row
 

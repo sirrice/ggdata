@@ -58,8 +58,9 @@ class data.Row
   steal: (row, cols=null) ->
     cols ?= @schema.cols
     for col in cols
-      if row.has col
-        @set col, row.get(col)
+      v = row.get col
+      @set col, v if v?
+        
     @
 
   clone: ->

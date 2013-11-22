@@ -223,8 +223,8 @@ class data.Table
     tables = _.compact _.flatten tables
     new data.ops.Union @, tables
 
-  cross: (table) ->
-    new data.ops.Cross @, table, 'outer'
+  cross: (table, jointype='outer', leftf, rightf) ->
+    new data.ops.Cross @, table, jointype, leftf, rightf
 
   join: (table, cols, type="outer", leftf, rightf) ->
     new data.ops.HashJoin @, table, cols, type, leftf, rightf

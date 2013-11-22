@@ -1,15 +1,15 @@
 class data.Schema
   @ggpackage = "data.Schema"
 
-  @ordinal = 0
+  @unknown = -1
+  @object = 0
+  @ordinal = 1
   @numeric = 2
   @date = 3
-  @object = 4
   @svg = 5    # environment variable
   @container = 6
   @function = 7
   @table = 8
-  @unknown = -1
 
 
   constructor: (@cols=[], @types=[], @defaults={}) ->
@@ -113,10 +113,12 @@ class data.Schema
       data.Schema.date
     else if _.isType v, data.Table
       data.Schema.table
-    else if _.isObject v
-      data.Schema.object
     else if _.isNumber v
       data.Schema.numeric
+    else if _.isString v
+      data.Schema.ordinal
+    else if _.isObject(v) 
+      data.Schema.object
     else
       data.Schema.ordinal 
 

@@ -13,19 +13,19 @@ class data.ops.Util
     switch jointype
       when "left"
         unless rhasRows
-          rights = [rightf()]
+          rights = [null]
           
       when "right"
         unless lhasRows
           lefts = rights
-          rights = [leftf()]
+          rights = [null]
 
       when "outer"
         unless lhasRows
           lefts = rights
-          rights = [leftf()]
+          rights = [null]
         else unless rhasRows
-          rights = [rightf()]
+          rights = [null]
 
 
     class Iter
@@ -43,7 +43,9 @@ class data.ops.Util
         @idx += 1
         l = lefts[lidx]
         r = rights[ridx]
-        @_row.reset().steal(l).steal(r)
+        @_row.reset()
+        @_row.steal(l) if l?
+        @_row.steal(r) if r?
         @_row
 
       hasNext: -> @idx < @nrows
@@ -54,7 +56,7 @@ class data.ops.Util
   # Creates a table that's cross product of the attrs
   # @param cols { attr1: [ values], ... }
   @cross: (cols, tabletype=null) ->
-    rows = @_cross cols
+    rows = data.ops.Util._cross cols
     return data.Table.fromArray rows, null, tabletype
 
   # @param cols object of { colname: list of values }
@@ -65,8 +67,9 @@ class data.ops.Util
     col = _.first _.keys cols
     data = cols[col]
     cols = _.omit cols, col
+    subrows = @_cross cols
     for v, idx in data
-      for subrow in @_cross cols
+      for subrow in subrows
         row = {}
         row[col] = v
         _.extend row, subrow
