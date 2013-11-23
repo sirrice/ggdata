@@ -47,8 +47,19 @@ t = t.project [{
   f: (x) -> ["#{x}"]
   cols: 'x'
 }
+{
+  alias: 'mine'
+  f: -> 99
+  cols: []
+  }
 ]
-print t
+
+print t.limit(1)
+
+console.log t.limit(1).colProv('mine')
+console.log t.project([{alias: 'tam', f: ((v) -> v + " foo"), cols: 'baz'}]).colProv('tam')
+console.log t.project([{alias: 'tam', f: ((v) -> v + " foo"), cols: 'baz'}]).colProv('foo')
+console.log t.limit(1).colProv('tam')
 
 
 ###

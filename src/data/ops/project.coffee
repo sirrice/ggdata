@@ -32,6 +32,12 @@ class data.ops.Project extends data.Table
     @schema = new data.Schema cols, types
     @inferUnknownCols()
 
+  colDependsOn: (col, type) ->
+    cols = _.map @mappings, (desc) ->
+      if (col == desc.alias) or (col in desc.alias)
+        desc.cols
+    _.compact _.flatten cols
+
   inferUnknownCols: ->
     mappings = _.filter @mappings, (desc) -> desc.type == data.Schema.unknown
     cols = _.flatten _.map mappings, (desc) -> desc.alias

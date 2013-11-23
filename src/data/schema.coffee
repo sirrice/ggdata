@@ -44,7 +44,9 @@ class data.Schema
     if @type(col) is data.Schema.unknown
       @types[@index col] = type
     else
-      throw Error "can't update #{col} because type not unknown: #{@type col}"
+      # XXX: check if new type is compatible
+      @types[@index col] = type
+      #throw Error "can't update #{col} to #{type} because type already set: #{@type col}"
 
   project: (cols) ->
     cols = _.compact _.flatten [cols]

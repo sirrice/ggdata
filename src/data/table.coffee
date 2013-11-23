@@ -24,6 +24,7 @@ class data.Table
 
   constructor: ->
     @id = data.Table.id()
+    @name = null
 
   # 
   # Required methods
@@ -43,26 +44,30 @@ class data.Table
 
   # the tables accessed by this table
   children: -> []
-  graph: (f=null)-> 
-    f ?= (n)->"#{n.constructor.name}:#{n.id} (#{n.timer().avg()})"
-    @_graph(f).join("\n")
 
-
-  _graph: (f) ->
-    if @children().length == 0
-      [f(@)]
-    else
-      ret = [f(@)]
-      for c in @children()
-        for line in c._graph(f)
-          line = " #{line}"
-          ret.push line
-      ret
+  graph: (f=null)-> data.util.Traverse.toString @, f
 
 
   # 
   # schema related methods
   #
+
+  colProv: (col) ->
+    lookup = {}
+    lookup[@id] = [col]
+    res = data.util.Traverse.bfs @, (node) ->
+      return if node.children().length == 0
+      cols = lookup[node.id]
+      delete lookup[node.id]
+      prov = _.flatten _.map cols, (col) -> node.colDependsOn col
+      for c in node.children()
+        lookup[c.id] = prov
+    _.flatten _.values lookup
+
+  
+  colDependsOn: (col, type) ->
+    cols = _.flatten [col]
+
 
   has: (col, type) -> @contains col, type
 
@@ -171,12 +176,13 @@ class data.Table
       @each (row) -> ret.push(row.get col)
       ret
     else
-      @map (row) -> row.clone()
+      @map (row) -> row.shallowClone()
 
   raw: -> @map (row) -> row.raw()
 
   # @param f functiton to run.  takes data.Row, index as input
   # @param n number of rows
+  # XXX: clone rows?
   map: (f, n=null) ->
     iter = @iterator()
     idx = 0
@@ -320,7 +326,7 @@ class data.Table
       else
         desc
 
-    new data.ops.Project @, mappings
+    (new data.ops.Project @, mappings).cache()
 
   # @param alias name of the table column that will store the partitions
   partition: (cols, alias="table") ->

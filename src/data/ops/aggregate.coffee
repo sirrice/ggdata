@@ -32,6 +32,10 @@ class data.ops.Aggregate extends data.Table
 
   nrows: -> @table.nrows()
   children: -> [@table]
+  colDependsOn: (col, type) ->
+    _.compact _.flatten _.map @aggs, (agg) ->
+      if (col == agg.alias) or (col in agg.alias)
+        desc.col
 
   iterator: ->
     timer = @timer()

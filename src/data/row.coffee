@@ -63,6 +63,10 @@ class data.Row
         
     @
 
+  shallowClone: ->
+    rowData = _.map @data, _.identity
+    new data.Row @schema, rowData
+
   clone: ->
     rowData = _.map @data, (v) ->
       if v? and v.clone?
