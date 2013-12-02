@@ -23,10 +23,11 @@ class data.ops.Project extends data.Table
   #
   #     { alias: 'x', f: (x) -> x+10, cols: 'x' }
   #
-  constructor: (@table, @mappings) ->
+  constructor: (@table, @mappings, @extend=yes) ->
     super
     @mappings = _.compact _.flatten [@mappings]
-    @mappings = data.ops.Project.normalizeMappings @mappings, @table.cols()
+    @mappings = data.ops.Project.normalizeMappings @mappings, @table.schema
+    @mappings = data.ops.Project.extendMappings @mappings, @table.schema if @extend
     cols = _.flatten _.map(@mappings, (desc) -> desc.alias)
     types = _.flatten _.map(@mappings, (desc) -> desc.type)
     @schema = new data.Schema cols, types
@@ -34,9 +35,10 @@ class data.ops.Project extends data.Table
 
   colDependsOn: (col, type) ->
     cols = _.map @mappings, (desc) ->
-      if (col == desc.alias) or (col in desc.alias)
+      if (col == desc.alias) or (col in _.flatten([desc.alias]))
         desc.cols
     _.compact _.flatten cols
+
 
   inferUnknownCols: ->
     mappings = _.filter @mappings, (desc) -> desc.type == data.Schema.unknown
@@ -67,11 +69,21 @@ class data.ops.Project extends data.Table
       type = d3.max types
       @schema.setType col, type unless type == data.Schema.unknown
 
+  # @params mappings for this projection
+  # @params schema schema of base table
+  @extendMappings: (mappings, schema) ->
+    newcols = {}
+    _.each mappings, (desc) ->
+      _.each _.flatten([desc.alias]), (newcol) -> newcols[newcol] = yes
+    oldcols = _.reject schema.cols, (col) -> col of newcols
+    oldcolmappings = data.ops.Project.normalizeMappings oldcols, schema
+    mappings.concat oldcolmappings
 
 
-  @normalizeMappings: (mappings, allcols) ->
+
+  @normalizeMappings: (mappings, schema) ->
     _.map mappings, (desc) ->
-      data.ops.Project.normalizeMapping desc, allcols
+      data.ops.Project.normalizeMapping desc, schema
 
   # ensure that the projection description has all attributes:
   #   cols
@@ -79,8 +91,19 @@ class data.ops.Project extends data.Table
   #   f
   # 
   # assumes alias exists
-  @normalizeMapping: (desc, allcols) ->
-    throw Error("mapping must has an alias: #{desc}") unless desc.alias?
+  @normalizeMapping: (desc, schema) ->
+    if _.isString desc
+      unless schema.has desc
+        throw Error "project: #{desc} not in table w schema #{schema.cols}"
+      desc = 
+        alias: desc
+        f: _.identity
+        type: schema.type desc
+        cols: desc
+
+    unless desc.alias?
+      throw Error("mapping must have alias: #{desc}") 
+
     desc = _.clone desc
     desc.cols ?= desc.col
     desc.cols ?= '*'
@@ -95,14 +118,19 @@ class data.ops.Project extends data.Table
         desc.type = _.times desc.alias.length, () -> desc.type
 
     if desc.cols != '*' and _.isArray desc.cols
-      desc.f = ((f, cols) ->
+      colidxs = _.map desc.cols, (col) -> schema.index col
+      desc.f = ((f, colidxs) ->
         (row, idx) ->
-          args = _.map cols, (col) -> row.get(col)
+          args = []
+          for colidx in colidxs
+            args.push row.data[colidx]
           args.push idx
           f.apply f, args
-        )(desc.f, desc.cols)
+        )(desc.f, colidxs)
     else
-      desc.cols = _.clone(allcols)
+      desc.cols = _.clone(schema.cols)
+
+    desc.isArray = _.isArray desc.alias
     desc
 
 
@@ -129,7 +157,7 @@ class data.ops.Project extends data.Table
         row = @iter.next()
         @_row.reset()
         for desc in @mappings
-          if _.isArray desc.alias
+          if desc.isArray
             o = desc.f row, @idx
             for col in desc.alias
               @_row.set col, o[col]

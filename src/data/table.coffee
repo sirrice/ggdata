@@ -24,7 +24,18 @@ class data.Table
 
   constructor: ->
     @id = data.Table.id()
-    @name = null
+    @name = @constructor.name 
+    unless @name?
+      print @
+      throw Error
+
+  # is this columnar or row
+  tabletype: -> "col"
+
+  timer: -> @_timer ?= new data.util.Timer()
+
+  timings: (name) -> @timer().timings name
+
 
   # 
   # Required methods
@@ -32,45 +43,55 @@ class data.Table
 
   iterator: -> throw Error("iterator not implemented")
 
-  # is this columnar or row
-  tabletype: -> "col"
-
-  timer: -> 
-    unless @_timer?
-      @_timer = new data.util.Timer()    
-    @_timer
-
-  timings: (name) -> @timer().timings name
-
+  #
+  # Provenance related methods
+  #
+  
   # the tables accessed by this table
   children: -> []
 
+  # print the query plan
   graph: (f=null)-> data.util.Traverse.toString @, f
 
+  # breadth traversals of the query plan
+  # @param f (node) -> anything
+  bfs: (f) -> data.util.Traverse.bfs @, f
 
-  # 
-  # schema related methods
+  # depth traversal of the query plan
+  # @param f (node, path-to-node) -> anything
+  dfs: (f) -> data.util.Traverse.dfs @, f
+
+  # find the columns finalcol depends on.
+  # a depends on cols if the cols contains a
   #
-
-  colProv: (col) ->
+  # @param finalcol the column to compute the provenance for
+  colProv: (finalcol, targetTableName=null) ->
     lookup = {}
-    lookup[@id] = [col]
+    lookup[@id] = [finalcol]
     res = data.util.Traverse.bfs @, (node) ->
       return if node.children().length == 0
       cols = lookup[node.id]
-      delete lookup[node.id]
+
       prov = _.flatten _.map cols, (col) -> node.colDependsOn col
       for c in node.children()
         lookup[c.id] = prov
-    _.flatten _.values lookup
 
-  
+      if finalcol in cols 
+        if not(targetTableName?) or targetTableName == node.name
+          return cols 
+      []
+    _.uniq _.compact _.flatten res
+
   colDependsOn: (col, type) ->
     cols = _.flatten [col]
 
 
-  has: (col, type) -> @contains col, type
+  #
+  # General stats/schema methods
+  #
 
+  # does schema contain col with type?
+  has: (col, type) -> @contains col, type
   contains: (col, type) -> @schema.has col, type
 
   hasCols: (cols, types=null) ->
@@ -83,7 +104,8 @@ class data.Table
 
   ncols: -> @schema.ncols()
 
-  # @override
+  # computes and caches number of rows in table
+  # @override if more efficient implementations
   nrows: -> 
     unless @_nrows?
       i = 0
@@ -94,11 +116,6 @@ class data.Table
       iter.close()
       @_nrows = i
     @_nrows
-
-
-  # actually iterate through the iterator and create the rows
-  getCol: (col) -> @each (row) -> row.get col
-
 
   toJSON: ->
     schema: @schema.toJSON()
@@ -114,69 +131,71 @@ class data.Table
     JSON.stringify @raw()
 
 
-  @type2class: (tabletype="row") ->
-    switch tabletype
-      when "row", "RowTable"
-        data.RowTable
-      when "col", "ColTable"
-        data.ColTable
-      else
-        null
-
-  @deserialize: (str) ->
-    json = JSON.parse str
-    switch json.type
-      when 'col'
-        data.ColTable.deserialize json
-      when 'row'
-        data.RowTable.deserialize json
-      else
-        throw Error "can't deserialize data of type: #{json.type}"
-
-
-  # Tries to infer a schema for a list of objects
-  #
-  # @param rows [ { attr: val, .. } ]
-  @fromArray: (rows, schema=null, tabletype="row") ->
-    klass = @type2class tabletype
-    unless klass?
-      throw Error "#{tabletype} doesnt have a class"
-
-    klass.fromArray rows, schema
-
-  @reEvalJS = /^{.*}$/
-  @reVariable = /^[a-zA-Z]\w*$/
-  @reNestedAttr = /^[a-zA-Z]+\.[a-zA-Z]+$/
-
-  @isEvalJS: (s) ->@reEvalJS.test s
-  @isVariable: (s) -> @reVariable.test s
-  @isNestedAttr: (s) -> @reNestedAttr.test s
-
 
 
   #
-  # Convenience methods that wrap operators
+  # Row and column accessors
   #
 
-  any: (col=null) ->
+  # Extracts any row, column value, or values from table
+  # NOTE: no guarantee on order.
+  #
+  # @param cols can be null, a column name, or an array of column names
+  # @return 
+  #   if cols is null: 
+  #     a rows
+  #   if cols is a column name:
+  #     any column value
+  #   if cols is an array:
+  #     array of column values, one for each column name in {@param cols}
+  #
+  any: (cols=null) ->
+    @timer().start("#{@name}-any")
     iter = @iterator()
     row = null
     row = iter.next() if iter.hasNext()
     iter.close()
-    return row unless row?
+    @timer().stop("#{@name}-any")
+    return null unless row?
 
-    if col?
-      row.get col
+    if cols?
+      if _.isArray cols
+        _.map cols, (col) -> row.get col
+      else
+        row.get cols
     else
       row
 
-  all: (col=null) ->
-    if col?
-      ret = []
-      @each (row) -> ret.push(row.get col)
-      ret
+  # Extracts all rows, a column, or a list of columns from the table
+  #
+  # @param cols can be null, a column name, or an array of column names
+  # @return 
+  #   if cols is null: 
+  #     all rows
+  #   if cols is a column name:
+  #     an array of the column values
+  #   if cols is an array:
+  #     an array of column values.  Each element is the list of values 
+  #     for the corresponding column name in {@param cols}
+  #
+  all: (cols=null) ->
+    @timer().start("#{@name}-all")
+    if cols?
+      if _.isArray cols
+        ret = _.map cols, () -> []
+        @each (row) -> 
+          for col, idx in cols
+            ret[idx].push row.get(col)
+        ret
+      else
+        ret = []
+        col = cols
+        @each (row) ->
+          ret.push row.get(col)
     else
-      @map (row) -> row.shallowClone()
+      ret = @map (row) -> row.shallowClone()
+    @timer().stop("#{@name}-all")
+    ret
 
   raw: -> @map (row) -> row.raw()
 
@@ -184,6 +203,7 @@ class data.Table
   # @param n number of rows
   # XXX: clone rows?
   map: (f, n=null) ->
+    @timer().start("#{@name}-map")
     iter = @iterator()
     idx = 0
     ret = []
@@ -192,10 +212,12 @@ class data.Table
       idx +=1 
       break if n? and idx >= n
     iter.close()
+    @timer().stop("#{@name}-map")
     ret
 
   # each, doesn't return anything!
   each: (f, n) -> 
+    @timer().start("#{@name}-each")
     iter = @iterator()
     idx = 0
     while iter.hasNext()
@@ -203,6 +225,13 @@ class data.Table
       idx += 1
       break if n? and idx >= n
     iter.close()
+    @timer().stop("#{@name}-each")
+
+
+
+  #
+  # Convenience methods that wrap operators
+  #
 
   limit: (n) ->
     new data.ops.Limit @, n
@@ -245,25 +274,6 @@ class data.Table
       f: _.identity
     @project mappings, no
 
-  # Transforms individual columns 
-  #
-  # @param mappings list of 
-  #  { 
-  #    alias: 'x', 
-  #    f: (x) -> , 
-  #    type: table.schema.type alias
-  #  }
-  mapCols: (mappings) ->
-    mappings = _.flatten [mappings]
-    mappings = _.map mappings, (desc) =>
-      unless _.isString desc.alias
-        throw Error "alias #{desc.alias} not found"
-      unless @has desc.alias
-        throw Error "mapCol got unknown col #{desc.alias}.  scheam: #{@schema.toString()}"
-      desc.type ?= @schema.type desc.alias
-      desc.cols = desc.alias
-      desc
-    @project mappings, yes
 
   # @param col col name
   # @param data array of values.  If setting constant, use setColVal
@@ -299,34 +309,7 @@ class data.Table
 
   # @param extend keep existing columns (if not overwritten by mappings)?
   project: (mappings, extend=yes) ->
-    mappings = _.flatten [mappings]
-
-    if extend
-      newcols = {}
-      _.each mappings, (desc) ->
-        alias = desc.alias
-        alias = desc if _.isString desc
-        _.each _.flatten([alias]), (newcol) ->
-          newcols[newcol] = yes
-
-      oldcols = _.reject @cols(), (col) -> col of newcols
-      mappings = mappings.concat oldcols
-
-    # allow String mappings as shorthand for "copy exsiting column"
-    mappings = _.map mappings, (desc) =>
-      if _.isString desc
-        unless @has desc
-          throw Error("project: #{desc} not in table. schema: #{@schema.cols}")
-        {
-          alias: desc
-          f: _.identity
-          type: @schema.type desc
-          cols: desc
-        }
-      else
-        desc
-
-    (new data.ops.Project @, mappings).cache()
+    (new data.ops.Project @, mappings, extend)
 
   # @param alias name of the table column that will store the partitions
   partition: (cols, alias="table") ->
@@ -348,3 +331,43 @@ class data.Table
     partition1 = @partition cols
     partition2 = table.partition cols
     partition1.join partition2, cols, type
+
+
+
+
+
+  #
+  # Static Methods
+  #
+
+  @type2class: (tabletype="row") ->
+    switch tabletype
+      when "row", "RowTable"
+        data.RowTable
+      when "col", "ColTable"
+        data.ColTable
+      else
+        null
+
+  @deserialize: (str) ->
+    json = JSON.parse str
+    switch json.type
+      when 'col'
+        data.ColTable.deserialize json
+      when 'row'
+        data.RowTable.deserialize json
+      else
+        throw Error "can't deserialize data of type: #{json.type}"
+
+
+  #
+  # Convert an array of objects into a table
+  # Routes to Concrete table classes (coltable, rowtable) 
+  #
+  # @param rows [ { attr: val, .. } ]
+  @fromArray: (rows, schema=null, tabletype="row") ->
+    klass = @type2class tabletype
+    unless klass?
+      throw Error "#{tabletype} doesnt have a class"
+
+    klass.fromArray rows, schema

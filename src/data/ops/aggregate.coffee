@@ -1,6 +1,9 @@
 #<< data/table
 
 class data.ops.Aggregate extends data.Table
+  @ANY = '_'
+
+
   # @param aggs of the form
   #    alias: col | [col, ...]
   #    f: (table) -> val
@@ -34,8 +37,8 @@ class data.ops.Aggregate extends data.Table
   children: -> [@table]
   colDependsOn: (col, type) ->
     _.compact _.flatten _.map @aggs, (agg) ->
-      if (col == agg.alias) or (col in agg.alias)
-        desc.col
+      if (col == agg.alias) or (col in _.flatten([agg.alias]))
+        agg.col
 
   iterator: ->
     timer = @timer()
@@ -51,21 +54,42 @@ class data.ops.Aggregate extends data.Table
         @idx = -1
 
       next: ->
+        timer.start('next')
         @idx += 1
         row = @iter.next()
+        @_row.reset()
         @_row.steal row
+
+        cols = _.map @aggs, (agg) -> agg.col
+        colVals = _.o2map cols, (col) -> [col, []]
+        partition = row.get @tablealias
+        timer.start 'iter'
+        partition.each (prow) ->
+          for col in cols
+            if col != data.ops.Aggregate.ANY
+              colVals[col].push prow.get(col)
+            else
+              colVals[col].push 1
+        timer.stop 'iter'
 
         for agg in @aggs
           if _.isArray agg.alias
-            o = agg.f row.get(@tablealias), @idx
+            o = agg.f colVals[agg.col], @idx
             for col in agg.alias
               @_row.set col, o[col]
           else
-            val = agg.f row.get(@tablealias), @idx
+            timer.start('agg')
+            val = agg.f colVals[agg.col], @idx
+            timer.stop('agg')
             @_row.set agg.alias, val
+        timer.stop('next')
         @_row
 
-      hasNext: -> @iter.hasNext()
+      hasNext: ->
+        timer.start('hasnext')
+        res = @iter.hasNext()
+        timer.stop('hasnext')
+        res
       close: -> 
         @iter.close()
         timer.stop()
@@ -90,6 +114,11 @@ class data.ops.Aggregate extends data.Table
         schema.addColumn col, agg.type[idx]
     else
       schema.addColumn agg.alias, agg.type
+    unless _.isString(agg.col) 
+      throw Error "Only support single column aggregates: got #{agg.col}"
+    unless (agg.col == data.ops.Aggregate.ANY or schema.has(agg.col))
+      console.log "[W] col #{agg.col} not in table #{schema.cols}.  Reverting to ANY"
+      agg.col = data.ops.Aggregate.ANY
     agg
 
    
@@ -100,24 +129,25 @@ class data.ops.Aggregate extends data.Table
   # (@aggs) param in Aggregate.constructor
   #
 
-  @agg: (aggtype, alias="agg", col, args...) ->
+  @agg: (aggtype, alias="agg", col='y', args...) ->
     f = switch aggtype 
       when 'min'
-        (t) -> d3.min t.all(col)
+        (t) -> d3.min t
       when 'max'
-        (t) -> d3.max t.all(col)
+        (t) -> d3.max t
+        d3.max
       when 'count', 'cnt'
         (t) -> t.nrows()
+        (vals) -> vals.length
       when 'sum', 'total'
-        (t) -> d3.sum t.all(col)
+        (t) -> d3.sum t
       when 'avg', 'mean', 'average'
-        (t) -> d3.mean t.all(col)
+        (t) -> d3.mean t
       when 'median'
-        (t) -> d3.median t.all(col)
+        (t) -> d3.median t
       when 'quantile'
         k = args[0]
-        (t) ->
-          vals = t.all col
+        (vals) ->
           vals.sort d3.ascending
           d3.quantile vals, k
     {
@@ -127,6 +157,6 @@ class data.ops.Aggregate extends data.Table
       col: col
     }
 
-  @count: (alias="count") -> @agg 'count', alias
+  @count: (alias="count") -> @agg 'count', alias, data.ops.Aggregate.ANY
   @average: (alias='avg', col) -> @agg 'avg', alias, col
   @sum: (alias='sum', col) -> @agg 'sum', alias, col

@@ -25,6 +25,7 @@ class data.util.Timer
     @_starts[name] = null
     cost
 
+  has: (name=null) -> name of @_timings
 
   names: ->
     _.keys @_timings
@@ -37,5 +38,21 @@ class data.util.Timer
 
   avg: (name=null) ->
     times = @timings name
-    d3.mean times
+    if times.length > 0
+      d3.mean times
+    else
+      NaN
+
+  count: (name=null) ->
+    @timings(name).length
+
+  sum: (name=null) ->
+    times = @timings name
+    if times.length > 0
+      d3.sum times
+    else
+      NaN
+
+
+
 

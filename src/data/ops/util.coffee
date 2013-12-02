@@ -14,18 +14,22 @@ class data.ops.Util
       when "left"
         unless rhasRows
           rights = [null]
+          rights = [rightf()]
           
       when "right"
         unless lhasRows
           lefts = rights
           rights = [null]
+          rights = [leftf()]
 
       when "outer"
         unless lhasRows
           lefts = rights
           rights = [null]
+          rights = [leftf()]
         else unless rhasRows
           rights = [null]
+          rights = [rightf()]
 
 
     class Iter
@@ -84,7 +88,10 @@ class data.ops.Util
   #   ht = JSON.stringify(key) -> rows
   #   keys: JSON.stringify(key) -> key
   @buildHT: (t, cols) ->
-    getkey = (row) -> _.map cols, (col) -> row.get(col)
+    getkey = (row) -> 
+      for col in cols
+        row.get col
+
     ht = {}
     keys = {}
     t.each (row) ->

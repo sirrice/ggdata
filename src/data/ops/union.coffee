@@ -10,7 +10,7 @@ class data.ops.Union extends data.Table
       console.log "[W] Union called with 0 tables."
       @schema = new data.Schema [], []
       @tables = [new data.RowTable(@schema)]
-    @schema = @tables[0].schema
+    @schema = data.Schema.merge _.map(@tables, (t)->t.schema)
     @ensureSchema()
 
   ensureSchema: ->
@@ -42,6 +42,7 @@ class data.ops.Union extends data.Table
 
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()
+        @_row.reset()
         @_row.steal @iter.next()
 
       hasNext: -> 

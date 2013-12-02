@@ -34,6 +34,7 @@ checks = (nrows) ->
       assert.equal t.nrows(), 4
       t.each (row, idx) ->
         assert.equal row.get('x'), idx
+
   
   "partition on a":
     topic: (t) -> t.partition(['a'])
@@ -45,8 +46,8 @@ checks = (nrows) ->
         t.aggregate [
           {
             alias: ['c', 's']
-            f: (t) ->
-              vals = t.all 'a'
+            col: 'a'
+            f: (vals) ->
               {
                 c: vals.length
                 s: _.reduce(vals, ((a,b)->a+b), 0)
@@ -63,6 +64,7 @@ checks = (nrows) ->
       topic: (t) ->
         t.aggregate [
           data.ops.Aggregate.count 'c'
+          data.ops.Aggregate.sum 'a'
         ]
       "is correct": (t) ->
         t.each (row) ->
@@ -229,6 +231,49 @@ checks = (nrows) ->
     rows2 = t2.all()
     _.each _.zip(rows1, rows2), ([r1, r2]) ->
       assert.equal r1.get('a'), r2.get('a'), "a's should be equal: #{r1.get('a')} != #{r2.get('a')}"
+
+
+  "any() with": ->
+    "no args": 
+      topic: (t) -> t.any()
+      "returns a row": (r) ->
+        assert _.isType(r, data.Row)
+    
+    "string arg":
+      topic: (t) -> t.any 'a'
+      "returns a number": (v) ->
+        assert _.isNumber(v)
+    
+    "array arg":
+      topic: (t) -> t.any ['a', 'b']
+      "returns array": (v) ->
+        assert _.isArray(v)
+
+  "all() with": ->
+    "no args": 
+      topic: (t) -> t.all()
+      "returns array of rows": (r) ->
+        assert _.isArray(r)
+        for row in r
+          assert _.isType(row, data.Row)
+    
+    "string arg":
+      topic: (t) -> t.all 'a'
+      "returns array of numbers": (data) ->
+        assert _.isArray data
+        for v in data
+          assert _.isNumber(v)
+    
+    "array arg":
+      topic: (t) -> t.all ['a', 'b']
+      "returns array": (data) ->
+        assert _.isArray(data)
+        for coldata in data
+          assert _.isArray(coldata)
+          for v in coldata
+            assert _.isNumber(v)
+
+
 
 
 nrows = 10

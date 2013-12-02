@@ -4,6 +4,52 @@ _ = require 'underscore'
 
 
 class data.util.Util
+
+  @isEqual: (a, b) -> @_isEqual a, b, [], []
+
+  @_isEqual: (a, b, astack, bstack) ->
+    return a != 0 or 1/a == 1/b if (a == b)
+    return a == b if (a is null or b is null)
+    klass = toString.call a
+    return no unless klass == toString.call(b)
+    switch klass
+      when '[object String]'
+        return a == String(b)
+      when '[object Number]', '[object Date]', '[object Boolean]'
+        return +a == +b
+      when '[object RegExp]'
+        return (
+          a.source == b.source and 
+          a.global == b.global and 
+          a.multiline == b.multiline and
+          a.ignoreCase == b.ignoreCase
+        )
+    return false if (typeof a != 'object') or (typeof b != 'object')
+    return false unless a.constructor == b.constructor
+    if klass == '[object Array]'
+      size = a.length
+      return false unless a.length == b.length
+      while size--
+        return no unless @_isEqual a[size], b[size]
+      return true
+
+    for key, val of a
+      if _.has a, key
+        return no unless _.has b, key
+        return no unless @_isEqual val, b[key]
+    return true
+
+
+
+
+
+
+
+
+
+
+
+
   @isValid: (v) -> not(_.isNull(v) or _.isNaN(v) or _.isUndefined(v))
 
   @hashCode: (s) ->

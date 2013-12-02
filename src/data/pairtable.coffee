@@ -86,17 +86,24 @@ class data.PairTable
     for p in @partition sharedCols
       l = p.left()
       r = p.right()
+
       if r.nrows() > 0
         createcopy = ((r) -> () -> r.all())(r)
       else if right.nrows() > 0
-        createcopy = ((r) -> () -> [r.any().clone()])(right)
+        # use any copy from right() but erase the values of the join columns
+        createcopy = ((r) -> 
+          () -> 
+            row = r.any().clone()
+            for col in cols
+              row.set col, null
+            [row]
+        )(right)
       else
         createcopy = () -> [new data.Row newrSchema]
         
       ldistinct = l.project(cols, no).distinct()
       r = ldistinct.cross(p.right(), 'outer', null, createcopy)
       rights.push r
-
 
     right = new data.ops.Union rights
     new data.PairTable left, right
