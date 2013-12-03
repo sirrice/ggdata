@@ -26,6 +26,24 @@ checks = (nrows) ->
     "has correct # rows": (t) ->
       assert.equal t.nrows(), nrows
 
+  "once": ->
+    topic: (t) ->
+      t.once()
+
+    "does not have _arraytable set": (t) ->
+      assert (not t._arraytable?)
+
+    "after reading it once": 
+      topic: (t) ->
+        t.all()
+        t
+
+      "has _arraytable": (t) ->
+        assert t._arraytable?
+
+      "reading again doesn't crash": (t) ->
+        t.all()
+
 
   "filter x < 4":
     topic: (t) ->
@@ -82,6 +100,47 @@ checks = (nrows) ->
           assert.equal t.nrows(), nrows
           t.each (row, idx) ->
             assert.equal row.get('x'), idx, "x was #{row.get 'x'} and not #{idx}"
+
+    "cached":
+      topic: (t) -> 
+        t.cache()
+
+      "table cols are intact": (t) ->
+        t.each (row, idx) ->
+          assert _.isType(row.get('table'), data.Table)
+
+    "once":
+      topic: (t) ->
+        t.once()
+
+      "table cols are intact": (t) ->
+        t.each (row, idx) ->
+          assert _.isType(row.get('table'), data.Table)
+
+      "after iterated once": 
+        topic: (t) -> 
+          t.all()
+          t
+
+        "table cols are intact": (t) ->
+          t.each (row, idx) ->
+            assert _.isType(row.get('table'), data.Table)
+
+
+        "unioned together":
+          topic: (t) ->
+            new data.ops.Union t.all('table')
+
+          "ordered by x": 
+            topic: (t) ->
+              t.orderby 'x'
+
+            "is correct": (t) ->
+              assert.equal t.nrows(), nrows
+              t.each (row, idx) ->
+                assert.equal row.get('x'), idx, "x was #{row.get 'x'} and not #{idx}"
+
+
 
   "union with itself":
     topic: (t) -> t.union t

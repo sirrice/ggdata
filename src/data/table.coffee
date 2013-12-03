@@ -254,6 +254,9 @@ class data.Table
   cache: ->
     new data.ops.Cache @
 
+  once: ->
+    new data.ops.Once @
+
   # remove children from provenance traces
   disconnect: ->
     new data.ops.DisconnectedTable @
