@@ -40,6 +40,7 @@ class data.ops.Partition extends data.Table
         unless partitionf.nrows() == partition.nrows()
           console.log @cols
           console.log htrow.key
+          console.log htrow
           console.log "#{partitionf.nrows()} vs #{partition.nrows()}"
           throw Error "filter based and array based partitions not same"
         if partition.nrows() > 0

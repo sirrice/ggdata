@@ -30,7 +30,12 @@ class data.util.Traverse
 
 
   @toString: (t, f=null) ->
-    f ?= (n)->"#{n.constructor.name}:#{n.id} (#{n.timer().avg()}/#{n.timer().count()})"
+    f ?= (n)->
+      t = n.timer()
+      avg = t.avg().toPrecision 4
+      count = t.count()
+      sum = t.sum().toPrecision 4
+      "#{n.constructor.name}:#{n.id} (#{avg}/#{count} | #{sum})"
     @_toString(t, f).join("\n")
 
 

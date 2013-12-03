@@ -88,23 +88,32 @@ class data.ops.Util
   #   ht = JSON.stringify(key) -> rows
   #   keys: JSON.stringify(key) -> key
   @buildHT: (t, cols) ->
+    objcols = {}
+    for col in cols
+      if t.schema.type(col) == data.Schema.object
+        objcols[col] = yes
+
     getkey = (row) -> 
+      data = []
+      res = ""
       for col in cols
-        row.get col
+        v = row.get col
+        data.push v
+        if col of objcols
+          for k,vv of v
+            res += "#{k}++#{vv}"
+        else
+          res += v
+      [data, res]
+
 
     ht = {}
-    keys = {}
     t.each (row) ->
       row = row.clone()
-      key = getkey row
-      strkey = JSON.stringify key
+      [key, strkey] = getkey row
       # XXX: may need to use toJSON on key
-      ht[strkey] = [] unless strkey of ht
-      ht[strkey].push row
-      keys[strkey] = key
-
-    _.o2map ht, (rows, keystr) ->
-      [ keystr,
-        { str: keystr, key: keys[keystr], table: ht[keystr] }
-      ]
+      unless strkey of ht
+        ht[strkey] = { str: strkey, key: key, table: [] } 
+      ht[strkey].table.push row
+    ht
 

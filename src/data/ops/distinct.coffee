@@ -6,6 +6,7 @@ class data.ops.Distinct extends data.Table
     @schema = @table.schema
     @uniqCols ?= @schema.cols
 
+  timer: -> @table.timer()
   children: -> [@table]
   iterator: ->
     timer = @timer()

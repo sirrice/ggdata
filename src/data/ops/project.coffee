@@ -119,14 +119,12 @@ class data.ops.Project extends data.Table
 
     if desc.cols != '*' and _.isArray desc.cols
       colidxs = _.map desc.cols, (col) -> schema.index col
-      desc.f = ((f, colidxs) ->
+      desc.f = ((f, cols) ->
         (row, idx) ->
-          args = []
-          for colidx in colidxs
-            args.push row.data[colidx]
+          args = (row.get(col) for col in cols)
           args.push idx
           f.apply f, args
-        )(desc.f, colidxs)
+        )(desc.f, desc.cols)
     else
       desc.cols = _.clone(schema.cols)
 

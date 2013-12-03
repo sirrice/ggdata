@@ -19,7 +19,10 @@ class data.Row
   cols: -> @schema.cols
   has: (col, type=null) -> @schema.has col, type
   contains: (col, type=null) -> @schema.has col, type
-  get: (col) -> @data[@schema.index(col)]
+  get: (col) -> 
+    v = @data[@schema.index(col)] 
+    v = null if v == undefined
+    v
   set: (col, v) -> @data[@schema.index(col)] = v
   project: (cols) ->
     if _.isType cols, data.Schema
@@ -64,13 +67,15 @@ class data.Row
     @
 
   shallowClone: ->
-    rowData = _.map @data, _.identity
+    rowData = (d for d in @data)
     new data.Row @schema, rowData
 
   clone: ->
     rowData = _.map @data, (v) ->
       if v? and v.clone?
         v.clone()
+      else if v == undefined
+        null
       else
         v
     new data.Row @schema, rowData
