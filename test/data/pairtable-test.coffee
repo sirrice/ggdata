@@ -69,6 +69,10 @@ createEmptyTable = ->
 
 
 checkEnsure =
+  "has correct shared columns": (pt) ->
+    truth = _.intersection pt.left().cols(), pt.right().cols()
+    assert.deepEqual pt.sharedCols(), truth
+
   "when ensured on x,y":
     topic: (ptable) -> ptable.ensure ['x', 'y']
     "md": 

@@ -62,35 +62,16 @@ class data.PairTable
         {
           alias: col
           f: () -> null
-          type: data.Schema.ordinal
+          type: right.schema.type(col)
           cols: []
         }
 
-    rights = []
-    for p in @partition sharedCols
-      l = p.left()
-      r = p.right()
-
-      if r.nrows() > 0
-        createcopy = ((r) -> 
-          () -> 
-            r.map (row) -> row.clone()
-        )(r)
-      else if right.nrows() > 0
-        # use any copy from right() but erase the values of the join columns
-        createcopy = ((r) -> 
-          () -> 
-            row = r.any().clone()
-            for col in cols
-              row.set col, null
-            [row]
-        )(right)
-      else
-        createcopy = () -> [new data.Row newrSchema]
-        
-      ldistinct = l.project(mapping, no).distinct()
+    canonicalMD = new data.Row newrSchema
+    createcopy = () -> [canonicalMD.clone()]
+    rights = for p in @partition sharedCols
+      ldistinct = p.left().project(mapping, no).distinct()
       r = ldistinct.cross(p.right(), 'outer', null, createcopy)
-      rights.push r
+      r
 
     right = new data.ops.Union rights
     new data.PairTable left, right

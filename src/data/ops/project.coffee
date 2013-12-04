@@ -31,6 +31,7 @@ class data.ops.Project extends data.Table
     cols = _.flatten _.map(@mappings, (desc) -> desc.alias)
     types = _.flatten _.map(@mappings, (desc) -> desc.type)
     @schema = new data.Schema cols, types
+    @inferUnknownCols()
 
   nrows: -> @table.nrows()
   children: -> [@table]
