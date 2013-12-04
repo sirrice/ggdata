@@ -31,7 +31,9 @@ class data.ops.Project extends data.Table
     cols = _.flatten _.map(@mappings, (desc) -> desc.alias)
     types = _.flatten _.map(@mappings, (desc) -> desc.type)
     @schema = new data.Schema cols, types
-    @inferUnknownCols()
+
+  nrows: -> @table.nrows()
+  children: -> [@table]
 
   colDependsOn: (col, type) ->
     cols = _.map @mappings, (desc) ->
@@ -41,7 +43,11 @@ class data.ops.Project extends data.Table
 
 
   inferUnknownCols: ->
+    return if @_infered?
+    @_infered = yes
+
     mappings = _.filter @mappings, (desc) -> desc.type == data.Schema.unknown
+    #return unless mappings.length > 0
     cols = _.flatten _.map mappings, (desc) -> desc.alias
     colVals = _.o2map cols, (col) -> [col, []]
 
@@ -68,6 +74,45 @@ class data.ops.Project extends data.Table
       types = _.map colVals[col], (v) -> data.Schema.type v
       type = d3.max types
       @schema.setType col, type unless type == data.Schema.unknown
+
+
+  iterator: ->
+    @inferUnknownCols()
+
+    timer = @timer()
+    class Iter
+      constructor: (@schema, @table, @mappings) ->
+        @_row = new data.Row @schema
+        @iter = @table.iterator()
+        @idx = -1
+        timer.start()
+
+      reset: -> 
+        @iter.reset()
+        @idx = -1
+
+      next: ->
+        @idx += 1
+        row = @iter.next()
+        @_row.reset()
+        for desc in @mappings
+          if desc.isArray
+            o = desc.f row, @idx
+            for col in desc.alias
+              @_row.set col, o[col]
+          else
+            val = desc.f row, @idx
+            @_row.set desc.alias, val
+        @_row
+
+      hasNext: -> @iter.hasNext()
+      close: -> 
+        @iter.close()
+        timer.stop()
+    new Iter @schema, @table, @mappings
+
+
+
 
   # @params mappings for this projection
   # @params schema schema of base table
@@ -133,42 +178,6 @@ class data.ops.Project extends data.Table
 
 
 
-
-  nrows: -> @table.nrows()
-  children: -> [@table]
-
-  iterator: ->
-    timer = @timer()
-    class Iter
-      constructor: (@schema, @table, @mappings) ->
-        @_row = new data.Row @schema
-        @iter = @table.iterator()
-        @idx = -1
-        timer.start()
-
-      reset: -> 
-        @iter.reset()
-        @idx = -1
-
-      next: ->
-        @idx += 1
-        row = @iter.next()
-        @_row.reset()
-        for desc in @mappings
-          if desc.isArray
-            o = desc.f row, @idx
-            for col in desc.alias
-              @_row.set col, o[col]
-          else
-            val = desc.f row, @idx
-            @_row.set desc.alias, val
-        @_row
-
-      hasNext: -> @iter.hasNext()
-      close: -> 
-        @iter.close()
-        timer.stop()
-    new Iter @schema, @table, @mappings
 
 
 

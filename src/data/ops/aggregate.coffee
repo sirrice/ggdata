@@ -1,14 +1,16 @@
 #<< data/table
 
 class data.ops.Aggregate extends data.Table
-  @ANY = '_'
+  # don't care about column value.  
+  # fills it in with 1s
+  @STAR = '_'
 
 
   # @param aggs of the form
   #    alias: col | [col, ...]
   #    f: (table) -> val
-  #    type: schema type    (default: schema.object)
-  #    col: col | [col*]    columnsaccessed in aggregate function
+  #    type: schema type | [ type,...]    (default: schema.object)
+  #    col: col | [col*]    columns accessed in aggregate function
   #    
   #   if alias is a list, then f is expected to return a dictionary 
   #
@@ -66,7 +68,7 @@ class data.ops.Aggregate extends data.Table
         timer.start 'iter'
         partition.each (prow) ->
           for col in cols
-            if col != data.ops.Aggregate.ANY
+            if col != data.ops.Aggregate.STAR
               colVals[col].push prow.get(col)
             else
               colVals[col].push 1
@@ -116,9 +118,9 @@ class data.ops.Aggregate extends data.Table
       schema.addColumn agg.alias, agg.type
     unless _.isString(agg.col) 
       throw Error "Only support single column aggregates: got #{agg.col}"
-    unless (agg.col == data.ops.Aggregate.ANY or schema.has(agg.col))
-      console.log "[W] col #{agg.col} not in table #{schema.cols}.  Reverting to ANY"
-      agg.col = data.ops.Aggregate.ANY
+    unless (agg.col == data.ops.Aggregate.STAR or schema.has(agg.col))
+      console.log "[W] col #{agg.col} not in table #{schema.cols}.  Reverting to STAR"
+      agg.col = data.ops.Aggregate.STAR
     agg
 
    
@@ -157,6 +159,6 @@ class data.ops.Aggregate extends data.Table
       col: col
     }
 
-  @count: (alias="count") -> @agg 'count', alias, data.ops.Aggregate.ANY
+  @count: (alias="count") -> @agg 'count', alias, data.ops.Aggregate.STAR
   @average: (alias='avg', col) -> @agg 'avg', alias, col
   @sum: (alias='sum', col) -> @agg 'sum', alias, col

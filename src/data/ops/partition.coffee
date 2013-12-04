@@ -27,6 +27,7 @@ class data.ops.Partition extends data.Table
         @_row.reset()
         for col, idx in @cols
           @_row.set col, htrow.key[idx]
+
         filter = ((cols, truekey) ->
           (row) =>
             for col, idx in cols
@@ -34,17 +35,25 @@ class data.ops.Partition extends data.Table
                 return no
             yes
         )(@cols, htrow.key)
-        partitionf = new data.ops.Filter @table, filter
-        partition = data.Table.fromArray htrow.table, @table.schema
-        partition.children = => [@table]
-        unless partitionf.nrows() == partition.nrows()
-          console.log @cols
-          console.log htrow.key
-          console.log htrow
-          console.log "#{partitionf.nrows()} vs #{partition.nrows()}"
-          throw Error "filter based and array based partitions not same"
-        if partition.nrows() > 0
-          @_row.steal partition.any()
+
+
+        #partitionf = new data.ops.Filter @table, filter
+        partitionf = new data.ops.Array(
+          @table.schema,
+          htrow.table,
+          [@table]
+        )
+        #partition = data.Table.fromArray htrow.table, @table.schema
+        #partition.children = => [@table]
+        #unless partitionf.nrows() == partition.nrows()
+        #  console.log @cols
+        #  console.log htrow.key
+        #  console.log htrow
+        #  console.log "#{partitionf.nrows()} vs #{partition.nrows()}"
+        #  console.log partition
+        #  throw Error "filter based and array based partitions not same"
+        if partitionf.nrows() > 0
+          @_row.steal partitionf.any()
         @_row.set @alias, partitionf
         @_row
 

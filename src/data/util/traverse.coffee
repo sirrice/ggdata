@@ -39,13 +39,15 @@ class data.util.Traverse
     @_toString(t, f).join("\n")
 
 
-  @_toString: (t, f) ->
+  @_toString: (t, f, seen={}) ->
+    return [] if t.id of seen
+    seen[t.id] = yes
     if t.children().length == 0
       [f(t)]
     else
       ret = [f(t)]
       for c in t.children()
-        for line in @_toString(c, f)
+        for line in @_toString(c, f, seen)
           line = " #{line}"
           ret.push line
       ret

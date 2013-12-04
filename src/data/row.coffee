@@ -71,13 +71,13 @@ class data.Row
     new data.Row @schema, rowData
 
   clone: ->
-    rowData = _.map @data, (v) ->
-      if v? and v.clone?
-        v.clone()
-      else if v == undefined
+    rowData = for d in @data
+      if d? and d.clone?
+        d.clone()
+      else if d == undefined
         null
       else
-        v
+        d
     new data.Row @schema, rowData
 
 

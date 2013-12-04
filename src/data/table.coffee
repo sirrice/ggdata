@@ -1,4 +1,4 @@
-#<< data/util/log
+#<< data/util/*
 
 #
 # The data model consists of a list of tuples (rows)
@@ -19,6 +19,7 @@
 class data.Table
   @ggpackage = "data.Table"
   @log = data.util.Log.logger @ggpackage, "Table"
+  @timer = new data.util.Timer(100)
   @id: -> data.Table::_id += 1
   _id: 0
 
@@ -42,13 +43,28 @@ class data.Table
   #
 
   iterator: -> throw Error("iterator not implemented")
+  toSQL: -> throw Error("toSQL not implemented")
 
-  #
+  #####
   # Provenance related methods
-  #
+  #####
   
+  #
+  # Overridable methods
+  #
+
   # the tables accessed by this table
   children: -> []
+
+  # return columns that {@param col} depends on
+  colDependsOn: (col, type) ->
+    cols = _.flatten [col]
+
+
+
+  #
+  # Traversal Methods
+  #
 
   # print the query plan
   graph: (f=null)-> data.util.Traverse.toString @, f
@@ -82,8 +98,6 @@ class data.Table
       []
     _.uniq _.compact _.flatten res
 
-  colDependsOn: (col, type) ->
-    cols = _.flatten [col]
 
 
   #
@@ -150,12 +164,10 @@ class data.Table
   #     array of column values, one for each column name in {@param cols}
   #
   any: (cols=null) ->
-    @timer().start("#{@name}-any")
     iter = @iterator()
     row = null
     row = iter.next() if iter.hasNext()
     iter.close()
-    @timer().stop("#{@name}-any")
     return null unless row?
 
     if cols?
@@ -179,7 +191,6 @@ class data.Table
   #     for the corresponding column name in {@param cols}
   #
   all: (cols=null) ->
-    @timer().start("#{@name}-all")
     if cols?
       if _.isArray cols
         ret = _.map cols, () -> []
@@ -193,8 +204,7 @@ class data.Table
         @each (row) ->
           ret.push row.get(col)
     else
-      ret = @map (row) -> row.shallowClone()
-    @timer().stop("#{@name}-all")
+      ret = @map (row) -> row.clone()
     ret
 
   raw: -> @map (row) -> row.raw()
@@ -203,7 +213,8 @@ class data.Table
   # @param n number of rows
   # XXX: clone rows?
   map: (f, n=null) ->
-    @timer().start("#{@name}-map")
+    data.Table.timer.start("#{@name}-#{@id}-map")
+    data.Table.timer.start("#{@name}-map")
     iter = @iterator()
     idx = 0
     ret = []
@@ -212,12 +223,14 @@ class data.Table
       idx +=1 
       break if n? and idx >= n
     iter.close()
-    @timer().stop("#{@name}-map")
+    data.Table.timer.stop("#{@name}-#{@id}-map")
+    data.Table.timer.stop("#{@name}-map")
     ret
 
   # each, doesn't return anything!
   each: (f, n) -> 
-    @timer().start("#{@name}-each")
+    data.Table.timer.start("#{@name}-#{@id}-each")
+    data.Table.timer.start("#{@name}-each")
     iter = @iterator()
     idx = 0
     while iter.hasNext()
@@ -225,7 +238,8 @@ class data.Table
       idx += 1
       break if n? and idx >= n
     iter.close()
-    @timer().stop("#{@name}-each")
+    data.Table.timer.stop("#{@name}-#{@id}-each")
+    data.Table.timer.stop("#{@name}-each")
 
 
 
@@ -269,7 +283,7 @@ class data.Table
     new data.ops.Cross @, table, jointype, leftf, rightf
 
   join: (table, cols, type="outer", leftf, rightf) ->
-    new data.ops.HashJoin @, table, cols, type, leftf, rightf
+    (new data.ops.HashJoin @, table, cols, type, leftf, rightf)
 
   exclude: (cols) ->
     cols = _.flatten [cols]
@@ -320,7 +334,7 @@ class data.Table
 
   # @param alias name of the table column that will store the partitions
   partition: (cols, alias="table") ->
-    new data.ops.Partition @, cols, alias
+    (new data.ops.Partition @, cols, alias)
 
   flatten: ->
     new data.ops.Flatten @

@@ -3,21 +3,28 @@
 class data.ops.Array extends data.Table
   constructor: (@schema, @rows, @_children=[]) ->
     throw Error("Array extends a schema") unless @schema?
+    super
 
 
   nrows: -> @rows.length
   children: -> @_children
   each: (f, n) ->
+    data.Table.timer.start("#{@name}-#{@id}-each")
     n ?= @rows.length
     n = Math.min n, @rows.length
-    for i in [0...n]
+    ret = for i in [0...n]
       f @rows[i], i
+    data.Table.timer.stop("#{@name}-#{@id}-each")
+    ret
 
   map: (f, n) ->
+    data.Table.timer.start("#{@name}-#{@id}-map")
     n ?= @rows.length
     n = Math.min n, @rows.length
-    for i in [0...n]
+    ret = for i in [0...n]
       f @rows[i], i
+    data.Table.timer.stop("#{@name}-#{@id}-map")
+    ret
 
 
 

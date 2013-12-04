@@ -122,6 +122,9 @@ checks = (nrows) ->
           t.all()
           t
 
+        "has n rows": (t) ->
+          assert.equal t.nrows(), 2
+
         "table cols are intact": (t) ->
           t.each (row, idx) ->
             assert _.isType(row.get('table'), data.Table)
@@ -279,6 +282,42 @@ checks = (nrows) ->
         assert.equal row.get('z'), (x*100), "z is wrong #{row.get 'z'} != #{x*100}"
         assert.equal row.get('n'), -x, "n is wrong #{row.get 'n'} != #{-x}"
         assert.equal row.get('m'), (-x-1000), "m is wrong #{row.get 'm'} != #{-x-1000}"
+
+
+  "project with unknown":
+    topic: (t) ->
+      t.project [
+        'x'
+        {
+          alias: 'y'
+          f: (x) -> x + 100
+          cols: 'x'
+          type: data.Schema.unknown
+        }
+        {
+          alias: 'z'
+          f: (row) -> data.Table.fromArray [row.raw()]
+          cols: '*'
+          type: data.Schema.unknown
+        }
+        {
+          alias: 'blah'
+          f: () -> 'blah'
+          type: data.Schema.unknown
+          cols: []
+        }
+      ], no
+
+    "values correct": (t) ->
+      t.each (row) ->
+        x = row.get 'x'
+        assert.equal row.schema.type('y'), data.Schema.numeric
+        assert.equal row.schema.type('z'), data.Schema.table
+        assert.equal row.schema.type('blah'), data.Schema.ordinal
+        assert.equal row.get('y'), (x+100), "y is wrong #{row.get 'y'} != #{x+100}"
+        row.get('z').each (subrow) ->
+          assert.equal subrow.get('x'), (x), "table type z.x is wrong #{subrow.get 'x'} != #{x}"
+        assert.equal row.get('blah'), "blah", "blah should be blah, instead is #{row.get 'blah'}"
 
 
   "can be turned to json and parsed back": (t) ->

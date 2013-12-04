@@ -10,11 +10,13 @@ class data.ops.Flatten extends data.Table
     othercols =  _.reject @schema.cols, (col) =>
       @schema.type(col) == data.Schema.table
     otherSchema = @schema.project othercols
+    console.log @table
 
     newtables = @table.map (row) ->
       lefto = _.o2map othercols, (col) ->
         [col, row.get(col)]
       left = data.Table.fromArray [lefto], otherSchema
+      console.log row.get(tablecol)
       right = data.Table.fromArray row.get(tablecol)
       left.cross right
 

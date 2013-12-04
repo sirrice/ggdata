@@ -72,7 +72,7 @@ if no
     testf "buildHT on #{col} with #{_.size f()} bucks", niters, f
 
 
-for col in ['d', 'e']
+for col in ['c', 'd', 'e']
   part = table.partition(col)
   test "Cached Part on #{col}", niters, part
   for i in [1]

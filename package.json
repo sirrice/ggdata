@@ -25,7 +25,8 @@
     "remove": ">= 0.1.5",
     "vows": ">= 0.7.0",
     "browserify": "=2.9.0",
-    "jsdom": ">=0.7.0"
+    "jsdom": ">=0.7.0",
+    "ggutil": ">=0.0.2"
   },
   "dependencies": {
     "underscore": ">=1.4.3",

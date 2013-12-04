@@ -18,13 +18,19 @@ class data.ops.Once extends data.Table
 
   each: (f, n) ->
     if @_arraytable?
-      @_arraytable.each f, n
+      data.Table.timer.start("#{@name}-#{@id}-each")
+      ret = @_arraytable.each f, n
+      data.Table.timer.stop("#{@name}-#{@id}-each")
+      ret
     else
       super
 
   map: (f, n) ->
     if @_arraytable?
-      @_arraytable.map f, n
+      data.Table.timer.start("#{@name}-#{@id}-map")
+      ret = @_arraytable.map f, n
+      data.Table.timer.stop("#{@name}-#{@id}-map")
+      ret
     else
       super
 
@@ -33,32 +39,44 @@ class data.ops.Once extends data.Table
     if @_arraytable?
       return @_arraytable.iterator()
 
+    timer = @timer()
     _rows = []
-    _this = @
+    ondone = () =>
+      timer.stop()
+      @_arraytable = new data.ops.Array(
+        @schema,
+        _rows,
+        [@table]
+      )
+      #@table.bfs (t) ->
+      #  if _.isType t, data.ops.Once
+      #    t._arraytable = null
+
+
     class Iter
       constructor: (@table) ->
         @iter = @table.iterator()
         @tablecols = _.filter @table.schema.cols, (col) =>
           @table.schema.type(col) == data.Schema.table
+        timer.start()
 
       reset: -> @iter.reset()
       next: ->
         row = @iter.next()
-        row = row.clone()
+        row = row.shallowClone()
         for col in @tablecols
           v = row.get col
           row.set col, v.cache() if v?
         _rows.push row
+
+        unless @iter.hasNext()
+          ondone()
+
         row
 
       hasNext: -> @iter.hasNext()
       close: -> 
         @iter.close()
-        _this.arraytable = new data.ops.Array(
-          @table.schema,
-          _rows,
-          [@table]
-        )
 
     new Iter @table
 

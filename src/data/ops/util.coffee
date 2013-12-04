@@ -80,7 +80,6 @@ class data.ops.Util
         rows.push row
     return rows
 
-
   #
   # build hash table based on equality of columns
   # @param cols columns to use for equality test
@@ -94,22 +93,22 @@ class data.ops.Util
         objcols[col] = yes
 
     getkey = (row) -> 
-      data = []
+      vals = []
       res = ""
       for col in cols
         v = row.get col
-        data.push v
+        vals.push v
         if col of objcols
           for k,vv of v
             res += "#{k}++#{vv}"
         else
           res += v
-      [data, res]
+      [vals, res]
 
 
     ht = {}
     t.each (row) ->
-      row = row.clone()
+      row = row.shallowClone()
       [key, strkey] = getkey row
       # XXX: may need to use toJSON on key
       unless strkey of ht

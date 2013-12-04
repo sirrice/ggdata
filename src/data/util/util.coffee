@@ -1,4 +1,5 @@
 _ = require 'underscore'
+ggutil = require 'ggutil'
 
 
 
@@ -176,8 +177,7 @@ class data.util.Util
 
 
 
-
-
+data.util.Timer = ggutil.Timer
 
 
 
