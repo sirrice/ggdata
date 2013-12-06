@@ -22,16 +22,35 @@ checks = (nrows) ->
   "frozen":
     topic: (t) -> t.freeze()
 
-    "cannot be extended": (t) ->
-      assert.throws () -> t.orderby('a')
-      assert.throws () -> t.partition('a')
-      assert.throws () -> t.limit('a')
+    "is frozen": (t) ->
+      assert t.isFrozen()
+      assert t.isFrozen()
+
+    "can be reshaped": (t) ->
+      assert.doesNotThrow () -> t.limit('a')
+      assert.doesNotThrow () -> t.partition('a')
+
+    "when partitioned": 
+      topic: (t) -> t.partition 'a'
+
+      "each partition is frozen": (t) ->
+        partitions = t.all('table')
+        for p in partitions
+          assert p.isFrozen()
+    
+
+    "cannot be modified": (t) ->
+      assert.throws () -> t.project('a')
+      assert.throws () -> t.partition('a').aggregate(data.ops.Aggregate.count())
 
     "when melted": 
       topic: (t) -> t.melt()
 
-      "can be extended": (t) ->
-        assert.doesNotThrow () -> t.limit('a')
+      "is not frozen": (t) ->
+        assert.isFalse t.isFrozen()
+
+      "can be modified": (t) ->
+        assert.doesNotThrow () -> t.project('a')
 
 
   "cached":

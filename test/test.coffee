@@ -20,6 +20,8 @@ desc = {
   cols: 'x'
 }
 
+t.freeze()
+
 table = t
 for i in [1...2000]
   table = table.project [desc]

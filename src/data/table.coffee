@@ -25,13 +25,10 @@ class data.Table
   constructor: ->
     @id = data.Table.id()
     @name ?= @constructor.name 
+    @frozen = no
     unless @name?
       print @
       throw Error
-
-    for child in @children()
-      if _.isType child, data.ops.Freeze
-        throw Error "Cannot add frozen table as an operator"
 
   tabletype: -> "row"
 
@@ -358,8 +355,18 @@ class data.Table
     partition2 = table.partition cols
     partition1.join partition2, cols, type
 
-  freeze: ->
+  freeze: -> 
     new data.ops.Freeze @
+
+  isFrozen: ->
+    return @frozen if @frozen
+    for child in @children()
+      if child.isFrozen()
+        @frozen = yes
+        break
+    @frozen
+
+  melt: -> @
 
 
 

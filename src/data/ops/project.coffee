@@ -31,6 +31,10 @@ class data.ops.Project extends data.Table
     types = _.flatten _.map(@mappings, (desc) -> desc.type)
     @schema = new data.Schema cols, types
     @inferUnknownCols()
+
+    if @table.isFrozen()
+      console.log @table
+      throw Error "cannot project (modify) frozen table"
     super
 
   nrows: -> @table.nrows()

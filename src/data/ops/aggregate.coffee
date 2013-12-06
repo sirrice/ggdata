@@ -22,6 +22,9 @@ class data.ops.Aggregate extends data.Table
     @schema = @table.schema
     unless @schema.has @alias
       throw Error("agg schema doesn't have table column #{@alias}: #{@schema.toString}")
+    if @table.isFrozen()
+      console.log @table
+      throw Error "cannot project (modify) frozen table"
     super
 
     @schema = @schema.exclude @alias
