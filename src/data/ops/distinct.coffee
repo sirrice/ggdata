@@ -2,9 +2,9 @@
 
 class data.ops.Distinct extends data.Table
   constructor: (@table, @uniqCols=null) ->
-    super
     @schema = @table.schema
     @uniqCols ?= @schema.cols
+    super
 
   timer: -> @table.timer()
   children: -> [@table]

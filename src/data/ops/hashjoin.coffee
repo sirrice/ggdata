@@ -8,7 +8,6 @@ class data.ops.HashJoin extends data.Table
   #          () -> new data.Row(t1.schema/t2.schema)
   #
   constructor: (@t1, @t2, @joincols, @jointype, @leftf=null, @rightf=null) ->
-    super
     @joincols = _.flatten [@joincols]
     @schema = @t1.schema.clone()
     @schema.merge @t2.schema.clone()
@@ -18,6 +17,7 @@ class data.ops.HashJoin extends data.Table
     @ht1 = data.ops.Util.buildHT @t1, @joincols
     @ht2 = data.ops.Util.buildHT @t2, @joincols
     @timer().stop 'buildht'
+    super
 
     # methods to create dummy rows for outer/left/right joins
     schema1 = @t1.schema.clone()

@@ -2,7 +2,6 @@
 
 class data.ops.Flatten extends data.Table
   constructor: (@table) ->
-    super
     @schema = @table.schema
     tablecols = _.filter @schema.cols, (col) =>
       @schema.type(col) == data.Schema.table
@@ -10,7 +9,7 @@ class data.ops.Flatten extends data.Table
     othercols =  _.reject @schema.cols, (col) =>
       @schema.type(col) == data.Schema.table
     otherSchema = @schema.project othercols
-    console.log @table
+    super
 
     newtables = @table.map (row) ->
       lefto = _.o2map othercols, (col) ->

@@ -2,8 +2,8 @@
 
 class data.ops.Limit extends data.Table
   constructor: (@table, @n) ->
-    super
     @schema = @table.schema
+    super
 
   nrows: ->
     Math.min @table.nrows(), @n

@@ -1,9 +1,9 @@
 class data.ops.Cross extends data.Table
   constructor: (@left, @right, @jointype, @leftf=null, @rightf=null) ->
-    super
     @schema = @left.schema.clone()
     @schema.merge @right.schema.clone()
     @setup()
+    super
 
 
   setup: ->

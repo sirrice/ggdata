@@ -3,7 +3,6 @@
 class data.ops.OrderBy extends data.Table
 
   constructor: (@table, @sortCols, @reverse=no) ->
-    super
     @schema = @table.schema
     cols = _.flatten [@sortCols]
     reverse = if @reverse then -1 else 1
@@ -15,6 +14,8 @@ class data.ops.OrderBy extends data.Table
         if r1.get(col) < r2.get(col)
           return -1 * reverse
       return 0
+    super
+
 
   nrows: -> @table.nrows()
   children: -> [@table]

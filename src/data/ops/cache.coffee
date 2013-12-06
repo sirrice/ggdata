@@ -20,4 +20,3 @@ class data.ops.Cache extends data.ops.Array
       row
     timer.stop()
     rows
- 

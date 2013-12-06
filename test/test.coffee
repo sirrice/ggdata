@@ -3,7 +3,7 @@ us = require "underscore"
 assert = require "assert"
 
 
-rows = _.times 1000, (i) -> { a: i%2, x: i, y: i, b: i%5}
+rows = _.times 10, (i) -> { a: i%2, x: i, y: i, b: i%5}
 t = data.fromArray rows, null, 'col'
 
 
@@ -16,11 +16,12 @@ print = (t1) ->
 desc = {
   alias: 'x'
   f: (x) -> x
+  type: data.Schema.numeric
   cols: 'x'
 }
 
 table = t
-for i in [1...1000]
+for i in [1...2000]
   table = table.project [desc]
 for i in [1...100]
   table = table.setColVal 'x', 99
@@ -33,7 +34,9 @@ xytable = data.ops.Util.cross({
   'facet-y': [1] 
 });
 print xytable
-rows = [ { 'facet-x': 0, 'facet-y': 1, layer: 0 }, {'facet-x': null, layer:9}]
+rows = [ 
+  { 'facet-x': 0, 'facet-y': 1, layer: 0 }, 
+  {'facet-x': null, layer:9}]
 md = data.fromArray rows, null
 pt = new data.PairTable(xytable, md)
 pt = pt.ensure(['facet-x', 'facet-y'])

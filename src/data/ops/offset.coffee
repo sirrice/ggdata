@@ -2,8 +2,8 @@
 
 class data.ops.Offset extends data.Table
   constructor: (@table, @n) ->
-    super
     @schema = @table.schema
+    super
 
   nrows: -> Math.max 0, @table.nrows() - @n
   children: -> [@table]

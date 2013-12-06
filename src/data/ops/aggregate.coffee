@@ -18,11 +18,11 @@ class data.ops.Aggregate extends data.Table
   #        will try to sniff it out
   # XXX: support incremental aggs
   constructor: (@table, @aggs, @alias=null) ->
-    super
     @alias ?= @sniffAlias()
     @schema = @table.schema
     unless @schema.has @alias
       throw Error("agg schema doesn't have table column #{@alias}: #{@schema.toString}")
+    super
 
     @schema = @schema.exclude @alias
     @parseAggs()

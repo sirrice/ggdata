@@ -4,7 +4,6 @@ class data.ops.Union extends data.Table
 
   # @param arguments are all table or list of tables
   constructor: () ->
-    super
     @tables = _.compact _.flatten arguments
     if @tables.length == 0
       console.log "[W] Union called with 0 tables."
@@ -12,6 +11,7 @@ class data.ops.Union extends data.Table
       @tables = [new data.RowTable(@schema)]
     @schema = data.Schema.merge _.map(@tables, (t)->t.schema)
     @ensureSchema()
+    super
 
   ensureSchema: ->
     for table, idx in @tables

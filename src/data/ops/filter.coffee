@@ -2,8 +2,8 @@
 
 class data.ops.Filter extends data.Table
   constructor: (@table, @f) ->
-    super
     @schema = @table.schema
+    super
 
   children: -> [@table]
 

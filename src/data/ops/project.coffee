@@ -24,7 +24,6 @@ class data.ops.Project extends data.Table
   #     { alias: 'x', f: (x) -> x+10, cols: 'x' }
   #
   constructor: (@table, @mappings, @extend=yes) ->
-    super
     @mappings = _.compact _.flatten [@mappings]
     @mappings = data.ops.Project.normalizeMappings @mappings, @table.schema
     @mappings = data.ops.Project.extendMappings @mappings, @table.schema if @extend
@@ -32,6 +31,7 @@ class data.ops.Project extends data.Table
     types = _.flatten _.map(@mappings, (desc) -> desc.type)
     @schema = new data.Schema cols, types
     @inferUnknownCols()
+    super
 
   nrows: -> @table.nrows()
   children: -> [@table]
@@ -48,7 +48,7 @@ class data.ops.Project extends data.Table
     @_infered = yes
 
     mappings = _.filter @mappings, (desc) -> desc.type == data.Schema.unknown
-    #return unless mappings.length > 0
+    return unless mappings.length > 0
     cols = _.flatten _.map mappings, (desc) -> desc.alias
     colVals = _.o2map cols, (col) -> [col, []]
 

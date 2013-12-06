@@ -19,6 +19,21 @@ makeTable = (n=10, type="row") ->
   Table.fromArray rows, null, type
 
 checks = (nrows) ->
+  "frozen":
+    topic: (t) -> t.freeze()
+
+    "cannot be extended": (t) ->
+      assert.throws () -> t.orderby('a')
+      assert.throws () -> t.partition('a')
+      assert.throws () -> t.limit('a')
+
+    "when melted": 
+      topic: (t) -> t.melt()
+
+      "can be extended": (t) ->
+        assert.doesNotThrow () -> t.limit('a')
+
+
   "cached":
     topic: (t) ->
       t.cache()

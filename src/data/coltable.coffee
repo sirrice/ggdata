@@ -15,9 +15,6 @@ class data.ColTable extends data.Table
 
   tabletype: -> "col"
 
-
-  colIterator: ->
-
   iterator: ->
     timer = @timer()
     class Iter
@@ -47,19 +44,18 @@ class data.ColTable extends data.Table
   map: (f, n=null) ->
     rowidx = 0
     nrows = @nrows()
-    data = _.times @ncols(), () -> null
-    row = new data.Row @schema, data
+    rowData = _.times @ncols(), () -> null
+    row = new data.Row @schema, rowData
     ret = []
     while rowidx < nrows
       for col, colidx in @colDatas
-        data[colidx] = col[rowidx]
+        rowData[colidx] = col[rowidx]
       ret.push f(row, rowidx)
       rowidx += 1
       break if n? and rowidx >= n
     ret
 
-  each: (f, n) ->
-    @map f, n
+  each: (f, n) -> @map f, n
 
   # Adds array, {}, or Row object as a row in this table
   #

@@ -4,9 +4,9 @@
 #
 class data.ops.Once extends data.Table
   constructor: (@table) ->
-    super
     @_arraytable = null
     @schema = @table.schema
+    super
 
   nrows: -> 
     if @_arraytable?

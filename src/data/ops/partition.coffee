@@ -3,10 +3,10 @@
 class data.ops.Partition extends data.Table
 
   constructor: (@table, @cols, @alias='table') ->
-    super
     @cols = _.flatten [@cols]
     @schema = @table.schema.clone()#.project @cols
     @schema.addColumn @alias, data.Schema.table
+    super
 
   children: -> [@table]
   iterator: ->
