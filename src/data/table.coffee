@@ -14,7 +14,6 @@
 # 1) check for attributes containing atomic data types
 # 2) check each column that is of type object
 #
-# Methods that start with "_" are update in place and return the same table
 #
 class data.Table
   @ggpackage = "data.Table"
@@ -30,8 +29,7 @@ class data.Table
       print @
       throw Error
 
-  # is this columnar or row
-  tabletype: -> "col"
+  tabletype: -> "row"
 
   timer: -> @_timer ?= new data.util.Timer()
 
@@ -42,7 +40,10 @@ class data.Table
   # Required methods
   #
 
+  # Internal function that returns a data.Row iterator
+  # Users should call all/any/each/map
   iterator: -> throw Error("iterator not implemented")
+
   toSQL: -> throw Error("toSQL not implemented")
 
   #####

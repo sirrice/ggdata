@@ -48,7 +48,7 @@ class data.ops.Cross extends data.Table
       constructor: (@schema, @left, @right) ->
         @_row = new data.Row @schema
         @liter = @left.iterator()
-        @riter = @right.cache().iterator()
+        @riter = @right.once().iterator()
         @lrow = new data.Row @left.schema
         @needNext = yes
         @reset()

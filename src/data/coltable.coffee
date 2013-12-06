@@ -12,7 +12,11 @@ class data.ColTable extends data.Table
 
   nrows: -> 
     if @colDatas.length == 0 then 0 else @colDatas[0].length
-  ncols: -> @colDatas.length
+
+  tabletype: -> "col"
+
+
+  colIterator: ->
 
   iterator: ->
     timer = @timer()
@@ -40,7 +44,7 @@ class data.ColTable extends data.Table
   # copies
   # @param f functiton to run.  takes data.Row, index as input
   # @param n number of rows
-  fastEach: (f, n=null) ->
+  map: (f, n=null) ->
     rowidx = 0
     nrows = @nrows()
     data = _.times @ncols(), () -> null
@@ -53,6 +57,9 @@ class data.ColTable extends data.Table
       rowidx += 1
       break if n? and rowidx >= n
     ret
+
+  each: (f, n) ->
+    @map f, n
 
   # Adds array, {}, or Row object as a row in this table
   #
