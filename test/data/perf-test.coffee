@@ -49,14 +49,30 @@ niters = 20
 if no
   test "base", niters, table
 
-if no
+if yes
+  niters = 10
   test "single project", niters, table.project('x')
 
   proj = table
   for i in [1...501]
-    proj = proj.project [{ alias: 'x', cols: 'x', f: (v) -> v+1 }]
-    if i < 5 or (i%100 == 0)
-      test "projected #{i} times ", 50, proj
+    proj = proj.project [{ 
+      alias: 'x'
+      cols: 'x'
+      f: (v) -> v+1
+      type: data.Schema.numeric 
+    }]
+    if i == 1 or (i%100 == 0)
+      test "projected #{i} times ", niters, proj
+
+if yes
+  niters = 100
+  test "single project 8 cols", niters, table.project([
+    {
+      alias: 'foo'
+      f: (a) -> a
+      type: data.Schema.numeric
+      cols: ['a','b','c','d','e','f','x','z']
+    }])
 
 if no
   union = table.union table
@@ -72,13 +88,14 @@ if no
     testf "buildHT on #{col} with #{_.size f()} bucks", niters, f
 
 
-for col in ['c', 'd', 'e']
-  part = table.partition(col)
-  test "Cached Part on #{col}", niters, part
-  for i in [1]
-    aggs = _.times(i, () -> data.ops.Aggregate.count())
-    res = part.aggregate aggs
-    test "Part on #{col} w/ #{part.nrows()} parts & #{i} aggs: ", niters, res
+if no
+  for col in ['c', 'd', 'e']
+    part = table.partition(col)
+    test "Cached Part on #{col}", niters, part
+    for i in [1]
+      aggs = _.times(i, () -> data.ops.Aggregate.count())
+      res = part.aggregate aggs
+      test "Part on #{col} w/ #{part.nrows()} parts & #{i} aggs: ", niters, res
 
 
 if no

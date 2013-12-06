@@ -1,7 +1,10 @@
 #<< data/table
 
+# Equi-partition on a set of columns
+#
 class data.ops.Partition extends data.Table
 
+  # @param alias attribute name for the partition table
   constructor: (@table, @cols, @alias='table') ->
     @cols = _.flatten [@cols]
     @schema = @table.schema.clone()#.project @cols
@@ -28,14 +31,13 @@ class data.ops.Partition extends data.Table
         for col, idx in @cols
           @_row.set col, htrow.key[idx]
 
-        filter = ((cols, truekey) ->
-          (row) =>
-            for col, idx in cols
-              unless data.util.Util.isEqual row.get(col), truekey[idx]
-                return no
-            yes
-        )(@cols, htrow.key)
-
+        #filter = ((cols, truekey) ->
+        #  (row) =>
+        #    for col, idx in cols
+        #      unless data.util.Util.isEqual row.get(col), truekey[idx]
+        #        return no
+        #    yes
+        #)(@cols, htrow.key)
 
         #partitionf = new data.ops.Filter @table, filter
         partitionf = new data.ops.Array(

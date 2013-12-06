@@ -33,7 +33,7 @@ class data.ops.Project extends data.Table
     @inferUnknownCols()
 
     if @table.isFrozen()
-      console.log @table
+      #console.log @table
       throw Error "cannot project (modify) frozen table"
     super
 
@@ -85,6 +85,7 @@ class data.ops.Project extends data.Table
     @inferUnknownCols()
 
     timer = @timer()
+    
     class Iter
       constructor: (@schema, @table, @mappings) ->
         @_row = new data.Row @schema
@@ -110,7 +111,8 @@ class data.ops.Project extends data.Table
             @_row.set desc.alias, val
         @_row
 
-      hasNext: -> @iter.hasNext()
+      hasNext: -> 
+        @iter.hasNext()
       close: -> 
         @iter.close()
         timer.stop()
@@ -123,11 +125,12 @@ class data.ops.Project extends data.Table
   # @params schema schema of base table
   @extendMappings: (mappings, schema) ->
     newcols = {}
-    _.each mappings, (desc) ->
-      _.each _.flatten([desc.alias]), (newcol) -> newcols[newcol] = yes
-    oldcols = _.reject schema.cols, (col) -> col of newcols
-    oldcolmappings = data.ops.Project.normalizeMappings oldcols, schema
-    mappings.concat oldcolmappings
+    for newcol in _.flatten(_.map mappings, (desc) -> [desc.alias])
+      newcols[newcol] = yes
+    oldmappings = for col in schema.cols
+      continue if col of newcols
+      data.ops.Project.normalizeMapping col, schema
+    mappings.concat _.compact oldmappings
 
 
 
@@ -141,6 +144,8 @@ class data.ops.Project extends data.Table
   #   f
   # 
   # assumes alias exists
+  # Constructs optimized functions to execute projects in blocks of rows
+  # Optimizes for raw column projections (copy value over) and single argument functions
   @normalizeMapping: (desc, schema) ->
     if _.isString desc
       unless schema.has desc
@@ -150,6 +155,8 @@ class data.ops.Project extends data.Table
         f: _.identity
         type: schema.type desc
         cols: desc
+        isArray: no
+        isRawCol: yes
 
     unless desc.alias?
       throw Error("mapping must have alias: #{desc}") 
@@ -158,6 +165,7 @@ class data.ops.Project extends data.Table
     desc.cols ?= desc.col
     desc.cols ?= '*'
     desc.cols = _.flatten [desc.cols] unless desc.cols == '*'
+    desc.isRawCol ?= no
     desc.type ?= data.Schema.unknown
 
     if _.isArray desc.alias
@@ -167,15 +175,42 @@ class data.ops.Project extends data.Table
       else
         desc.type = _.times desc.alias.length, () -> desc.type
 
+
     if desc.cols != '*' and _.isArray desc.cols
-      colidxs = _.map desc.cols, (col) -> schema.index col
-      desc.f = ((f, cols) ->
-        (row, idx) ->
-          args = (row.get(col) for col in cols)
-          args.push idx
-          f.apply f, args
-        )(desc.f, desc.cols)
+      if desc.isRawCol
+        colidx = schema.index desc.cols[0]
+        desc.f = ((colidx) ->
+          (row) -> 
+            v = row.data[colidx]
+            v = null if v == undefined
+            v
+        )(colidx)
+
+
+      else if desc.cols.length == 1 
+        colidx = schema.index desc.cols[0]
+        desc.f = ((f, colidx) ->
+          (row, idx) -> 
+            v = row.data[colidx]
+            v = null if v == undefined
+            f v, idx
+        )(desc.f, colidx)
+
+
+      else
+        colidxs = _.map desc.cols, (col) -> schema.index col
+        desc.f = ((f, cols, colidx) ->
+          (row, idx) ->
+            args = for colidx in colidxs
+              v = row.data[colidx]
+              v = null if v == undefined
+              v
+            args.push idx
+            f.apply f, args
+          )(desc.f, desc.cols, colidxs)
+
     else
+      _row = new data.Row schema
       desc.cols = _.clone(schema.cols)
 
     desc.isArray = _.isArray desc.alias

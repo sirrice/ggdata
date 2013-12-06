@@ -3,33 +3,63 @@ us = require "underscore"
 assert = require "assert"
 
 
-rows = _.times 10, (i) -> { a: i%2, x: i, y: i, b: i%5}
+rows = _.times 1000, (i) ->  {
+    a: i%2, 
+    b: "#{i}"
+    c: i%5
+    d: i%10
+    e: i%100
+    f: i%500
+    x: i
+    y: {
+      z: i
+    }
+}
 t = data.fromArray rows, null, 'col'
+
+test = (name, n, table) ->
+  perrowCosts = []
+  _.times n, (i) ->
+    table.each(()->)
+
+  timer = table.timer()
+  avgCost = table.timer().avg()
+  setup = table.timer().avg('iter')
+  console.log "#{name}\ttook: #{avgCost}  #{setup}*#{timer.count('iter')}"#\t#{avgPerRow}/outputrow\t#{d3.mean nrows} rows"
+  print table
 
 
 print = (t1) ->
   console.log t1.schema.toString()
-  console.log t1.raw()
+  console.log t1.raw()[0..10]
   console.log "timings: #{t1.timings()}"
   console.log "\n"
 
 desc = {
   alias: 'x'
-  f: (x) -> x
+  f: (x) -> x+1
   type: data.Schema.numeric
   cols: 'x'
 }
 
-t.freeze()
+test "* project", 10, t.project({alias: 'foo', type: data.Schema.unknown, f: (row) -> row.get('a')})
+test "col unknown project", 10, t.project({
+  alias: 'foo', 
+  col: [],
+  type: data.Schema.unknown,
+  f: () -> 1})
 
 table = t
-for i in [1...2000]
+for i in [1..200]
   table = table.project [desc]
-for i in [1...100]
-  table = table.setColVal 'x', 99
-print table
+test "2k projects", 10, table
 
+table = t
+for i in [1..200]
+  table = table.project 'x'
+test "2k raw projects", 10, table
 
+###
 
 xytable = data.ops.Util.cross({
   'facet-x': [0, 1],
@@ -58,76 +88,3 @@ for p in ps
 
 
 ###
-
-print t
-
-arr1 = [ {a: 0}, {a:1} ]
-arr2 = [ {z: 1} ]
-arr3 = [ ]
-l = data.Table.fromArray arr1
-r = data.Table.fromArray arr3
-n = new data.RowTable l.schema, arr3
-pt = new data.PairTable l,r
-pt = pt.ensure []
-pt = pt.ensure ['a']
-print pt.right()
-
-
-t = t.project [{
-  alias: 'foo'
-  f: (x,y) -> x * y + 100000
-  cols: ['x', 'y']
-}
-{
-  alias: 'bar'
-  f: (x) -> new Date("2013/#{x}/01")
-  cols: 'x'
-  }
-{
-  alias: 'baz'
-  f: (x) -> "#{x}"
-  cols: 'x'
-}
-{
-  alias: 'tam'
-  f: (x) -> ["#{x}"]
-  cols: 'x'
-}
-{
-  alias: 'mine'
-  f: -> 99
-  cols: []
-  }
-]
-
-print t.limit(1)
-
-console.log t.limit(1).colProv('mine')
-console.log t.project([{alias: 'tam', f: ((v) -> v + " foo"), cols: 'baz'}]).colProv('tam')
-tt = t.project([{alias: 'tam', f: ((v) -> v + " foo"), cols: 'baz'}]).mapCols({alias: 'tam', f: (v) -> v})
-console.log tt.colProv('tam')
-console.log t.limit(1).colProv('tam')
-
-pt = new data.PairTable tt, t
-
-
-for p in pt.fullPartition()
-  console.log p.left().graph()
-
-console.log l.partition('a')
-console.log l.partition('a')
-
-###
-###
-
-print(t.filter (row) -> row.get('x') < 5)
-
-rows = _.times 10, (i) -> { x: i+ 6, b: i%3}
-t2 = data.Table.fromArray rows
-print t.join t2, ['x'], 'outer'
-
-print new data.ops.Cross t, t2
-
-print t.cross t2
-###
-

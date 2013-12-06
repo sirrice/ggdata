@@ -35,7 +35,7 @@ class data.PairTable
   # enforces invariant: each md should have 1+ row
   fullPartition: () -> 
     cols = @sharedCols()
-    right = @left().project(cols, no).distinct().join(@right(), cols)
+    right = @left().melt().project(cols, no).distinct().join(@right(), cols)
     pt = new data.PairTable(@left(), right)
     pt.partition cols
 
@@ -68,12 +68,11 @@ class data.PairTable
 
     canonicalMD = new data.Row newrSchema
     createcopy = () -> [canonicalMD.clone()]
-    rights = for p in @partition sharedCols
-      ldistinct = p.left().project(mapping, no).distinct()
-      r = ldistinct.cross(p.right(), 'outer', null, createcopy)
-      r
+    #rights = for p in @partition sharedCols
+    ldistinct = @left().melt().project(mapping, no).distinct()
+    right = ldistinct.cross(@right(), 'outer', null, createcopy)
 
-    right = new data.ops.Union rights
+    #right = new data.ops.Union rights
     new data.PairTable left, right
 
 
