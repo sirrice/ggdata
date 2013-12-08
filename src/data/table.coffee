@@ -334,6 +334,10 @@ class data.Table
   project: (mappings, extend=yes) ->
     (new data.ops.Project @, mappings, extend)
 
+  # @param extend keep existing columns (if not overwritten by mappings)?
+  blockproject: (mappings, extend=yes, blocksize) ->
+    (new data.ops.BlockProject @, mappings, extend, blocksize)
+
   # @param alias name of the table column that will store the partitions
   partition: (cols, alias="table") ->
     (new data.ops.Partition @, cols, alias)
@@ -360,10 +364,12 @@ class data.Table
 
   isFrozen: ->
     return @frozen if @frozen
+    return @_isfrozen if @_isfrozen?
     for child in @children()
       if child.isFrozen()
         @frozen = yes
         break
+    @_isfrozen = @frozen
     @frozen
 
   melt: -> @
