@@ -68,11 +68,12 @@ class data.PairTable
 
     canonicalMD = new data.Row newrSchema
     createcopy = () -> [canonicalMD.clone()]
-    #rights = for p in @partition sharedCols
-    ldistinct = @left().melt().project(mapping, no).distinct()
-    right = ldistinct.cross(@right(), 'outer', null, createcopy)
+    nrows = right.nrows()
+    rights = for p in (new data.PairTable(left.project(mapping, no).distinct(), right)).partition(sharedCols)
+      p.left().cross(p.right(), 'outer', null, createcopy)
 
-    #right = new data.ops.Union rights
+    right = new data.ops.Union rights
+    console.log "pairtable.ensure [#{sharedCols}] [#{restCols}] right #{nrows} -> #{right.nrows()}"
     new data.PairTable left, right
 
 
