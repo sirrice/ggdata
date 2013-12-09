@@ -6,6 +6,8 @@ toast
 
   # EXCLUDED FOLDERS (optional)
   exclude: [
+    'src/data/ops/part/'
+    'src/data/partitiontable.coffee'
   ]
 
   # => VENDORS (optional)

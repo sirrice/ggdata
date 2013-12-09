@@ -48,10 +48,6 @@ class data.ops.Once extends data.Table
         _rows,
         [@table]
       )
-      #@table.bfs (t) ->
-      #  if _.isType t, data.ops.Once
-      #    t._arraytable = null
-
 
     class Iter
       constructor: (@table) ->

@@ -84,6 +84,7 @@ class data.ops.Project extends data.Table
     @inferUnknownCols()
 
     timer = @timer()
+    tid = @id
     
     class Iter
       constructor: (@schema, @table, @mappings) ->
@@ -100,6 +101,8 @@ class data.ops.Project extends data.Table
         row = @iter.next()
         timer.start()
         @_row.reset()
+        @_row.id = "#{tid}:#{@idx-1}"
+        @_row.addProv row.prov()
         for desc in @mappings
           if desc.isArray
             o = desc.f row, @idx

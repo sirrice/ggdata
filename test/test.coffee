@@ -3,7 +3,7 @@ us = require "underscore"
 assert = require "assert"
 
 
-rows = _.times 1000, (i) ->  {
+rows = _.times 4, (i) ->  {
     a: i%2, 
     b: "#{i}"
     c: i%5
@@ -16,7 +16,107 @@ rows = _.times 1000, (i) ->  {
     }
 }
 t = data.fromArray rows, null, 'col'
+t.each (row) ->
+  console.log row.prov()
 
+proj = t.project 'a'
+
+proj.each (row) ->
+  console.log row.clone().prov()
+
+console.log "filter"
+f = t.filter {col: 'a', val: 0}
+f.each (row) ->
+  console.log row.prov()
+
+console.log "filter2"
+f = t.filter {col: 'a', f: (a) -> a==0}
+f.each (row) ->
+  console.log row.prov()
+
+console.log "filter"
+f = t.filter ((row)->row.get('a')==0)
+f.each (row) ->
+  console.log row.prov()
+
+console.log "filter"
+f = t.filter {f:(row)->row.get('a')==0}
+f.each (row) ->
+  console.log row.prov()
+
+throw Error
+
+console.log "partitioning"
+part = proj.partition 'a'
+part.each (row) ->
+  console.log row.prov()
+
+
+console.log "aggregate"
+agg = part.aggregate data.ops.Aggregate.count()
+agg.each (row) -> console.log row.prov()
+
+console.log "second table"
+r = data.fromArray [{a: 1, zz: 9}, {a:1, zz:10}, {a: 3, zz:11}]
+r.each (row) -> 
+  console.log row.prov()
+
+
+console.log "rawjoin"
+join = t.join r, 'a', 'left'
+join.each (row) -> 
+  console.log row.prov()
+
+console.log "partition join"
+join = part.join r, 'a', 'outer'
+join.each (row) ->
+  console.log row.prov()
+
+
+pt = new data.PairTable part, r
+pt = pt.ensure 'a'
+console.log "ensure left"
+pt.left().each (row) ->
+  console.log row.prov()
+
+console.log "ensure right"
+pt.right().each (row) ->
+  console.log row.get 'a'
+  console.log row.prov()
+
+console.log "flatten"
+part.flatten().each (row) ->
+  console.log row.prov()
+
+console.log "t union t"
+t.union(t).each (row) ->
+  console.log row.prov()
+
+console.log "join.cache"
+join.cache().each (row) ->
+  console.log row.prov()
+
+console.log "join.once 1st"
+once = join.once()
+once.each (row) ->
+  console.log row.prov()
+
+console.log "join.once 2nd"
+once.each (row) ->
+  console.log row.prov()
+
+console.log "pt.partition 'a'"
+for pt2, idx in pt.partition 'a'
+  console.log "left partition #{idx}"
+  pt2.left().each (row) ->
+    console.log row.prov()
+  console.log "right partition #{idx}"
+  pt2.right().each (row) ->
+    console.log row.prov()
+
+
+
+throw Error
 
 test = (name, n, table) ->
   perrowCosts = []

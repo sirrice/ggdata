@@ -67,13 +67,12 @@ class data.PairTable
         }
 
     canonicalMD = new data.Row newrSchema
-    createcopy = () -> [canonicalMD.clone()]
+    createcopy = () -> 
+      row = canonicalMD.clone().reset()
+      [row]
     nrows = right.nrows()
     rights = for p in (new data.PairTable(left.project(mapping, no).distinct(), right)).partition(sharedCols)
-      if p.left().nrows() == 1
-        p.right()
-      else
-        p.left().cross(p.right(), 'outer', null, createcopy)
+      p.left().cross(p.right(), 'outer', null, createcopy)
 
     right = new data.ops.Union rights
     new data.PairTable left, right

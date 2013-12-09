@@ -84,12 +84,47 @@ checks = (nrows) ->
 
 
   "filter x < 4":
-    topic: (t) ->
-      t.filter (row) -> row.get('x') < 4
-    "has 4 rows": (t) ->
-      assert.equal t.nrows(), 4
-      t.each (row, idx) ->
-        assert.equal row.get('x'), idx
+    "using {col:, val:}":
+      topic: (t) ->
+        t.filter {col: 'x', op: '<', val: 4}
+      "has 4 rows": (t) ->
+        assert.equal t.nrows(), 4
+        t.each (row, idx) ->
+          assert.equal row.get('x'), idx
+
+    "using {col:, f:}":
+      topic: (t) ->
+        t.filter {col: 'x', f: ((x)->x<4)}
+      "has 4 rows": (t) ->
+        assert.equal t.nrows(), 4
+        t.each (row, idx) ->
+          assert.equal row.get('x'), idx
+
+
+    "using f":
+      topic: (t) ->
+        t.filter (row) -> row.get('x') < 4
+      "has 4 rows": (t) ->
+        assert.equal t.nrows(), 4
+        t.each (row, idx) ->
+          assert.equal row.get('x'), idx
+
+    "using multiple filters":
+      topic: (t) ->
+        t.filter [
+          ((row) -> row.get('x') < 4),
+          {
+            col: 'x', f: ((x)->x<4)
+          },
+          {
+            col: 'x', op: '<', val: 4
+          }
+        ]
+      "has 4 rows": (t) ->
+        assert.equal t.nrows(), 4
+        t.each (row, idx) ->
+          assert.equal row.get('x'), idx
+
 
   
   "partition on a":

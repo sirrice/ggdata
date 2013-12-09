@@ -1,11 +1,71 @@
 #<< data/table
 
+#
+# { 
+#   col: colname
+#   op: "<", ">", "<=", ">=", "=", "!="
+#   val: VALUE
+# }
+#
+# {
+#   col: colname
+#   f: 
+# }
+#
+# {
+#   f:
+# }
+#
+# f()
+#
 class data.ops.Filter extends data.Table
-  constructor: (@table, @f) ->
+  constructor: (@table, @descs=[]) ->
+    @f = @constructor.normalizeDescs _.flatten([@descs])
+
     @schema = @table.schema
     super
 
   children: -> [@table]
+  @normalizeDescs: (descs) ->
+    descs = for desc in descs
+      @normalizeDesc desc
+
+    (row) ->
+      for desc in descs
+        unless desc.f(row)
+          return no
+      yes
+
+  @normalizeDesc: ( desc) ->
+    if _.isFunction desc
+      desc = {
+        col: '*'
+        f: desc
+      }
+    
+    if desc.col? and 'val' of desc
+      desc.op ?= '='
+
+    if desc.op? and desc.col? 
+      desc.op = switch desc.op
+        when '=' then '=='
+        else desc.op
+      cmd = "(row.get('#{desc.col}') #{desc.op} #{JSON.stringify desc.val})"
+      desc.f = Function("row", "return #{cmd}")
+    else if desc.f?
+      if desc.col? and desc.col != '*' 
+        desc.f = ((f, col) ->
+          (row) ->
+            f row.get(col)
+        )(desc.f, desc.col)
+      else
+        desc.col = '*'
+    desc
+
+  @validate: (schema, descs) ->
+    for desc in descs
+      if desc.col != '*' and not schema.has(desc.col)
+        throw Error
 
   iterator: ->
     timer = @timer()

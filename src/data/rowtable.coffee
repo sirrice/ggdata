@@ -16,6 +16,7 @@ class data.RowTable extends data.Table
   tabletype: -> "row"
 
   iterator: ->
+    tid = @id
     timer = @timer()
     class Iter
       constructor: (@table) ->
@@ -28,7 +29,10 @@ class data.RowTable extends data.Table
       next: ->
         throw Error("no more elements.  idx=#{@idx}") unless @hasNext()
         @idx += 1
+        @_row.reset()
         @_row.data = @table.rows[@idx-1]
+        @_row.id = "#{tid}:#{@idx-1}"
+        @_row.addProv @_row.id
         @_row
       hasNext: -> @idx < @nrows
       close: -> 
@@ -36,18 +40,6 @@ class data.RowTable extends data.Table
         timer.stop()
     new Iter @
 
-
-  # more efficient version of each, allocates single
-  # data.Row object for entire iteration and minimizes 
-  # copies
-  fastEach: (f, n=null) ->
-    row = new data.Row @schema
-    ret = []
-    for raw, idx in @rows
-      row.data = raw
-      ret.push f(row, idx)
-      break if n? and idx >= n
-    ret
 
   # Adds array, {}, or Row object as a row in this table
   #

@@ -107,8 +107,8 @@ class data.ops.Util
 
 
     ht = {}
-    t.each (row) ->
-      row = row.shallowClone()
+    t.each (oldrow) ->
+      row = oldrow.shallowClone()
       [key, strkey] = getkey row
       # XXX: may need to use toJSON on key
       unless strkey of ht

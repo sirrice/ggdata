@@ -17,45 +17,30 @@ class data.ColTable extends data.Table
 
   iterator: ->
     timer = @timer()
+    tid = @id
     class Iter
       constructor: (@table) ->
         @colDatas = @table.colDatas
         @schema = @table.schema
         @nrows = @table.nrows()
+        @_row = new data.Row @schema
         @idx = 0
         timer.start()
       reset: -> @idx = 0
       next: ->
         throw Error("no more elements.  idx=#{@idx}") unless @hasNext()
         @idx += 1
-        rowData = _.map @colDatas, (cd) => cd[@idx-1]
-        new data.Row @schema, rowData
+        @_row.reset()
+        for cd, colIdx in @colDatas
+          @_row.data[colIdx] = cd[@idx-1]
+        @_row.id = "#{tid}:#{@idx-1}"
+        @_row.addProv @_row.id
+        @_row
       hasNext: -> @idx < @nrows
       close: -> 
         @table = @schema = null
         timer.stop()
     new Iter @
-
-  # more efficient version of each, allocates single
-  # data.Row object for entire iteration and minimizes 
-  # copies
-  # @param f functiton to run.  takes data.Row, index as input
-  # @param n number of rows
-  map: (f, n=null) ->
-    rowidx = 0
-    nrows = @nrows()
-    rowData = _.times @ncols(), () -> null
-    row = new data.Row @schema, rowData
-    ret = []
-    while rowidx < nrows
-      for col, colidx in @colDatas
-        rowData[colidx] = col[rowidx]
-      ret.push f(row, rowidx)
-      rowidx += 1
-      break if n? and rowidx >= n
-    ret
-
-  each: (f, n) -> @map f, n
 
   # Adds array, {}, or Row object as a row in this table
   #

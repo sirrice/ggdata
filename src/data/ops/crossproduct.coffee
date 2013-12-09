@@ -23,19 +23,19 @@ class data.ops.Cross extends data.Table
     switch @jointype
       when "left"
         unless rhasRows
-          @right = data.Table.fromArray(rrows, @right.schema) 
+          @right = new data.ops.Array @right.schema, rrows, []
           
       when "right"
         unless lhasRows
           @left = @right
-          @right = data.Table.fromArray(lrows, @left.schema) 
+          @right = new data.ops.Array @left.schema, lrows, []
 
       when "outer"
         unless lhasRows
           @left = @right
-          @right = data.Table.fromArray(lrows, @left.schema) 
+          @right = new data.ops.Array @left.schema, lrows, []
         else unless rhasRows
-          @right = data.Table.fromArray(rrows, @right.schema) 
+          @right = new data.ops.Array @right.schema, rrows, []
 
     @timer().stop()
 
@@ -44,9 +44,11 @@ class data.ops.Cross extends data.Table
           
   iterator: ->
     timer = @timer()
+    tid = @id
     class Iter
       constructor: (@schema, @left, @right) ->
         @_row = new data.Row @schema
+        @rowidx = 0
         @liter = @left.iterator()
         @riter = @right.once().iterator()
         @lrow = new data.Row @left.schema
@@ -64,6 +66,8 @@ class data.ops.Cross extends data.Table
         @_row.reset()
         @_row.steal(@lrow)
         @_row.steal(rrow.clone())
+        @_row.id = "#{tid}:#{@rowidx}"
+        @rowidx += 1
         timer.stop()
         @_row
 

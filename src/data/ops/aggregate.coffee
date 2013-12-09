@@ -67,12 +67,15 @@ class data.ops.Aggregate extends data.Table
         cols = _.map @aggs, (agg) -> agg.col
         colVals = _.o2map cols, (col) -> [col, []]
         partition = row.get @tablealias
+
+        prov = []
         partition.each (prow) ->
           for col in cols
             if col != data.ops.Aggregate.STAR
               colVals[col].push prow.get(col)
             else
               colVals[col].push 1
+            prov.push.apply prov, prow.prov()
 
         for agg in @aggs
           if _.isArray agg.alias
@@ -82,7 +85,9 @@ class data.ops.Aggregate extends data.Table
           else
             val = agg.f colVals[agg.col], @idx
             @_row.set agg.alias, val
+        @_row.addProv prov
         timer.stop()
+
         @_row
 
       hasNext: ->

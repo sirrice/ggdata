@@ -11,7 +11,7 @@ class data.Row
       throw Error "Row needs a schema"
     
     @id = @constructor.id()
-    @parents = []
+    @parents = {}
     @data ?= []
     while @data.length < @schema.ncols()
       @data.push null
@@ -38,7 +38,7 @@ class data.Row
       schema = @schema.project cols
     rowData = _.map cols, (col) => @get col
     ret = new data.Row schema, rowData
-    ret.parents.push @id
+    ret.addProv @prov()
     ret
 
   # Steal column values from row argument
@@ -48,14 +48,14 @@ class data.Row
     for col in cols
       v = row.get col
       @set col, v if v?
-    @parents.push row.id
+    @addProv row.prov() if row?
         
     @
 
   shallowClone: ->
     rowData = (d for d in @data)
     ret = new data.Row @schema, rowData
-    ret.parents.push @id
+    ret.addProv @prov()
     ret
 
   clone: ->
@@ -67,9 +67,15 @@ class data.Row
       else
         d
     ret = new data.Row @schema, rowData
-    ret.parents.push @id
+    ret.addProv @prov()
     ret
 
+
+  addProv: (ids) ->
+    for id in _.flatten [ids]
+      @parents[id] = yes
+
+  prov: -> _.keys @parents
 
   toJSON: -> 
     o = {

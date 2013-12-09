@@ -21,6 +21,8 @@ class data.ops.Partition extends data.Table
       @ht = _.values(data.ops.Util.buildHT @table, @cols)
       timer.stop()
 
+    tid = @id
+
     class Iter
       constructor: (@schema, @table, @ht, @cols, @alias) ->
         @_row = new data.Row @schema
@@ -35,6 +37,8 @@ class data.ops.Partition extends data.Table
         htrow = @ht[@idx]
         @idx += 1
         @_row.reset()
+        @_row.id = "#{tid}:#{@idx-1}"
+        
         for col, idx in @cols
           @_row.set col, htrow.key[idx]
 
@@ -47,6 +51,10 @@ class data.ops.Partition extends data.Table
         if partitionf.nrows() > 0
           @_row.steal partitionf.any()
         @_row.set @alias, partitionf
+
+        for row in htrow.rows
+          @_row.addProv row.prov()
+
         timer.stop()
         @_row
 
