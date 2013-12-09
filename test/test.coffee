@@ -17,7 +17,7 @@ rows = _.times 4, (i) ->  {
 }
 t = data.fromArray rows, null, 'col'
 t.each (row) ->
-  console.log row.prov()
+  console.log "#{row.get('x')} #{row.prov()}"
 
 proj = t.project 'a'
 
@@ -44,7 +44,6 @@ f = t.filter {f:(row)->row.get('a')==0}
 f.each (row) ->
   console.log row.prov()
 
-throw Error
 
 console.log "partitioning"
 part = proj.partition 'a'
@@ -56,16 +55,18 @@ console.log "aggregate"
 agg = part.aggregate data.ops.Aggregate.count()
 agg.each (row) -> console.log row.prov()
 
+
 console.log "second table"
 r = data.fromArray [{a: 1, zz: 9}, {a:1, zz:10}, {a: 3, zz:11}]
 r.each (row) -> 
   console.log row.prov()
 
 
+
 console.log "rawjoin"
 join = t.join r, 'a', 'left'
 join.each (row) -> 
-  console.log row.prov()
+  console.log [row.get('a'), row.prov()]
 
 console.log "partition join"
 join = part.join r, 'a', 'outer'
@@ -73,7 +74,7 @@ join.each (row) ->
   console.log row.prov()
 
 
-pt = new data.PairTable part, r
+pt = new data.PairTable t, r
 pt = pt.ensure 'a'
 console.log "ensure left"
 pt.left().each (row) ->
