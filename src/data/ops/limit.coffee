@@ -17,7 +17,6 @@ class data.ops.Limit extends data.Table
         @schema = @table.schema
         @iter = @table.iterator()
         @idx = 0
-        timer.start()
 
       reset: -> 
         @iter.reset()
@@ -33,7 +32,6 @@ class data.ops.Limit extends data.Table
       close: -> 
         @table = null
         @iter.close()
-        timer.stop()
 
     new Iter @table, @n
 

@@ -14,7 +14,6 @@ class data.ops.Filter extends data.Table
         @schema = @table.schema
         @iter = @table.iterator()
         @_next = null
-        timer.start()
 
       reset: -> @iter.reset()
       next: -> 
@@ -26,16 +25,18 @@ class data.ops.Filter extends data.Table
       hasNext: -> 
         return true if @_next?
         while @iter.hasNext()
+          timer.start()
           row = @iter.next()
           if @f row
             @_next = row
+            timer.stop()
             break
+          timer.stop()
         @_next?
 
       close: -> 
         @table = null
         @iter.close()
-        timer.stop()
 
     new Iter @table, @f
 

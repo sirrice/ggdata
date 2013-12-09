@@ -17,7 +17,6 @@ class data.ops.Distinct extends data.Table
         @seen = {}
         @_next = new data.Row @schema
         @needNext = yes
-        timer.start()
 
       reset: -> 
         @iter.reset()
@@ -32,6 +31,7 @@ class data.ops.Distinct extends data.Table
         return true unless @needNext
         while @iter.hasNext()
           row = @iter.next()
+          timer.start()
           vals = _.map @cols, (col) -> row.get(col)
           key = _.hashCode JSON.stringify vals
           unless key of @seen
@@ -40,13 +40,13 @@ class data.ops.Distinct extends data.Table
             @_next.steal row
             @needNext = no
             break
+          timer.stop()
         not @needNext
 
       close: -> 
         @table = null
         @iter.close()
         @seen = {}
-        timer.stop()
 
     new Iter @table, @uniqCols
 

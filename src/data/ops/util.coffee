@@ -112,7 +112,7 @@ class data.ops.Util
       [key, strkey] = getkey row
       # XXX: may need to use toJSON on key
       unless strkey of ht
-        ht[strkey] = { str: strkey, key: key, table: [] } 
-      ht[strkey].table.push row
+        ht[strkey] = { str: strkey, key: key, rows: [] } 
+      ht[strkey].rows.push row
     ht
 

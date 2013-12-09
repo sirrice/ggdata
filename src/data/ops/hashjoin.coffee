@@ -13,10 +13,10 @@ class data.ops.HashJoin extends data.Table
     @schema.merge @t2.schema.clone()
     @ensureSchema()
     @getkey = (row) -> _.map cols, (col) -> row.get(col)
-    @timer().start 'buildht'
+    @timer().start()
     @ht1 = data.ops.Util.buildHT @t1, @joincols
     @ht2 = data.ops.Util.buildHT @t2, @joincols
-    @timer().stop 'buildht'
+    @timer().stop()
     super
 
     # methods to create dummy rows for outer/left/right joins
@@ -52,7 +52,6 @@ class data.ops.HashJoin extends data.Table
           else
             @keys = _.uniq _.flatten [keys1, keys2]
 
-        timer.start()
         @reset()
 
       reset: -> 
@@ -69,27 +68,29 @@ class data.ops.HashJoin extends data.Table
           @iter.close()
           @iter = null
 
+        timer.start()
         while @iter is null and @keyidx < @keys.length
           @keyidx += 1
           @key = @keys[@keyidx]
           if @key of @ht1
-            left = @ht1[@key].table 
+            left = @ht1[@key].rows
           else
             left = new data.RowTable @lschema
           if @key of @ht2
-            right = @ht2[@key].table 
+            right = @ht2[@key].rows
           else
             right = new data.RowTable @rschema
           @iter = data.ops.Util.crossArrayIter @schema, left, right, @jointype, @leftf, @rightf
           break if @iter.hasNext()
           @iter = null
 
-        @iter != null and @iter.hasNext()
+        ret = @iter != null and @iter.hasNext()
+        timer.stop()
+        ret
 
       close: -> 
         @ht1 = @ht2 = null
         @iter.close() if @iter?
         @iter = null
-        timer.stop()
 
     new Iter @schema, @t1.schema, @t2.schema, @ht1, @ht2, @jointype, @leftf, @rightf

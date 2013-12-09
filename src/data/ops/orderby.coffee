@@ -3,15 +3,20 @@
 class data.ops.OrderBy extends data.Table
 
   constructor: (@table, @sortCols, @reverse=no) ->
-    @schema = @table.schema
+    schema = @schema = @table.schema
     cols = _.flatten [@sortCols]
+    colidxs = (schema.index(col) for col in cols)
     reverse = if @reverse then -1 else 1
     @cmp = (r1, r2) ->
-      for col in cols
-        continue unless r1.has(col) and r2.has(col)
-        if r1.get(col) > r2.get(col)
+      for colidx in colidxs
+        v1 = r1.data[colidx]
+        v1 = null if v1 == undefined
+        v2 = r2.data[colidx]
+        v2 = null if v2 == undefined
+
+        if v1 > v2
           return 1 * reverse
-        if r1.get(col) < r2.get(col)
+        if v1 < v2
           return -1 * reverse
       return 0
     super
@@ -27,7 +32,6 @@ class data.ops.OrderBy extends data.Table
         @rows = null
         @schema = @table.schema
         @idx = 0
-        timer.start()
 
       reset: -> 
         @idx = 0
@@ -40,12 +44,13 @@ class data.ops.OrderBy extends data.Table
       hasNext: -> 
         unless @rows?
           @rows = @table.all()
+          timer.start()
           @rows.sort @cmp
+          timer.stop()
         @idx < @rows.length
 
       close: -> 
         @table = null
         @rows = null
-        timer.stop()
 
     new Iter @table, @cmp

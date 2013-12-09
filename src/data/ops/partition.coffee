@@ -9,66 +9,54 @@ class data.ops.Partition extends data.Table
     @cols = _.flatten [@cols]
     @schema = @table.schema.clone()#.project @cols
     @schema.addColumn @alias, data.Schema.table
+    @ht = null
     super
+
 
   children: -> [@table]
   iterator: ->
     timer = @timer()
+    unless @ht?
+      timer.start()
+      @ht = _.values(data.ops.Util.buildHT @table, @cols)
+      timer.stop()
+
     class Iter
-      constructor: (@schema, @table, @cols, @alias) ->
+      constructor: (@schema, @table, @ht, @cols, @alias) ->
         @_row = new data.Row @schema
         @idx = 0
-        timer.start()
 
       reset: -> 
         @idx = 0
 
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()
+        timer.start()
         htrow = @ht[@idx]
         @idx += 1
         @_row.reset()
         for col, idx in @cols
           @_row.set col, htrow.key[idx]
 
-        #filter = ((cols, truekey) ->
-        #  (row) =>
-        #    for col, idx in cols
-        #      unless data.util.Util.isEqual row.get(col), truekey[idx]
-        #        return no
-        #    yes
-        #)(@cols, htrow.key)
-
-        #partitionf = new data.ops.Filter @table, filter
         partitionf = new data.ops.Array(
           @table.schema,
-          htrow.table,
+          htrow.rows,
           [@table]
         )
-        #partition = data.Table.fromArray htrow.table, @table.schema
-        #partition.children = => [@table]
-        #unless partitionf.nrows() == partition.nrows()
-        #  console.log @cols
-        #  console.log htrow.key
-        #  console.log htrow
-        #  console.log "#{partitionf.nrows()} vs #{partition.nrows()}"
-        #  console.log partition
-        #  throw Error "filter based and array based partitions not same"
+
         if partitionf.nrows() > 0
           @_row.steal partitionf.any()
         @_row.set @alias, partitionf
+        timer.stop()
         @_row
 
       hasNext: -> 
-        unless @ht?
-          @ht = _.values(data.ops.Util.buildHT @table, @cols)
         @idx < @ht.length
 
       close: -> 
         @table = null
-        timer.stop()
 
-    new Iter @schema, @table, @cols, @alias
+    new Iter @schema, @table, @ht, @cols, @alias
 
 
 

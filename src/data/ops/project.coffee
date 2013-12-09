@@ -25,15 +25,14 @@ class data.ops.Project extends data.Table
   #
   constructor: (@table, @mappings, @extend=yes) ->
     @mappings = _.compact _.flatten [@mappings]
-    @mappings = data.ops.Project.normalizeMappings @mappings, @table.schema
-    @mappings = data.ops.Project.extendMappings @mappings, @table.schema if @extend
+    @mappings = @constructor.normalizeMappings @mappings, @table.schema
+    @mappings = @constructor.extendMappings @mappings, @table.schema if @extend
     cols = _.flatten _.map(@mappings, (desc) -> desc.alias)
     types = _.flatten _.map(@mappings, (desc) -> desc.type)
     @schema = new data.Schema cols, types
     @inferUnknownCols()
 
     if @table.isFrozen()
-      #console.log @table
       throw Error "cannot project (modify) frozen table"
     super
 
@@ -91,7 +90,6 @@ class data.ops.Project extends data.Table
         @_row = new data.Row @schema
         @iter = @table.iterator()
         @idx = -1
-        timer.start()
 
       reset: -> 
         @iter.reset()
@@ -100,6 +98,7 @@ class data.ops.Project extends data.Table
       next: ->
         @idx += 1
         row = @iter.next()
+        timer.start()
         @_row.reset()
         for desc in @mappings
           if desc.isArray
@@ -109,13 +108,13 @@ class data.ops.Project extends data.Table
           else
             val = desc.f row, @idx
             @_row.set desc.alias, val
+        timer.stop()
         @_row
 
       hasNext: -> 
         @iter.hasNext()
       close: -> 
         @iter.close()
-        timer.stop()
     new Iter @schema, @table, @mappings
 
 
@@ -129,14 +128,14 @@ class data.ops.Project extends data.Table
       newcols[newcol] = yes
     oldmappings = for col in schema.cols
       continue if col of newcols
-      data.ops.Project.normalizeMapping col, schema
+      @normalizeMapping col, schema
     mappings.concat _.compact oldmappings
 
 
 
   @normalizeMappings: (mappings, schema) ->
-    _.map mappings, (desc) ->
-      data.ops.Project.normalizeMapping desc, schema
+    for desc in mappings
+      @normalizeMapping desc, schema
 
   # ensure that the projection description has all attributes:
   #   cols

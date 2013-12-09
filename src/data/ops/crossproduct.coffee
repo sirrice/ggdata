@@ -7,7 +7,7 @@ class data.ops.Cross extends data.Table
 
 
   setup: ->
-    @timer().start 'setup'
+    @timer().start()
     defaultf = -> new data.Row(new data.Schema)
     @leftf ?= defaultf
     @rightf ?= defaultf
@@ -37,7 +37,7 @@ class data.ops.Cross extends data.Table
         else unless rhasRows
           @right = data.Table.fromArray(rrows, @right.schema) 
 
-    @timer().stop 'setup'
+    @timer().stop()
 
   nrows: -> @left.nrows() * @right.nrows()
   children: -> [@left, @right]
@@ -52,7 +52,6 @@ class data.ops.Cross extends data.Table
         @lrow = new data.Row @left.schema
         @needNext = yes
         @reset()
-        timer.start()
 
       reset: ->
         @liter.reset()
@@ -61,21 +60,22 @@ class data.ops.Cross extends data.Table
       next: ->
         throw Error("iterator has no more elements") unless @hasNext()
         rrow = @riter.next()
+        timer.start()
         @_row.reset()
         @_row.steal(@lrow)
-        @_row.steal(rrow)
+        @_row.steal(rrow.clone())
+        timer.stop()
         @_row
 
       hasNext: ->
         @needNext = yes unless @riter.hasNext()
 
+        timer.start()
         while @liter.hasNext() and (@needNext or not @riter.hasNext())
-          timer.end 'innerloop'
           @riter.reset()
-          @lrow.reset()
-          @lrow.steal @liter.next()
+          @lrow.reset().steal @liter.next()
           @needNext = no
-          timer.start 'innerloop'
+        timer.stop()
 
         not(@needNext) and @riter.hasNext()
 
@@ -83,7 +83,6 @@ class data.ops.Cross extends data.Table
         @left = @right = null
         @liter.close()
         @riter.close()
-        timer.stop()
 
     new Iter @schema, @left, @right
 

@@ -52,14 +52,13 @@ class data.ops.Aggregate extends data.Table
         @_row = new data.Row @schema
         @iter = @table.iterator()
         @idx = -1
-        timer.start()
 
       reset: -> 
         @iter.reset()
         @idx = -1
 
       next: ->
-        timer.start('next')
+        timer.start()
         @idx += 1
         row = @iter.next()
         @_row.reset()
@@ -68,14 +67,12 @@ class data.ops.Aggregate extends data.Table
         cols = _.map @aggs, (agg) -> agg.col
         colVals = _.o2map cols, (col) -> [col, []]
         partition = row.get @tablealias
-        timer.start 'iter'
         partition.each (prow) ->
           for col in cols
             if col != data.ops.Aggregate.STAR
               colVals[col].push prow.get(col)
             else
               colVals[col].push 1
-        timer.stop 'iter'
 
         for agg in @aggs
           if _.isArray agg.alias
@@ -83,21 +80,16 @@ class data.ops.Aggregate extends data.Table
             for col in agg.alias
               @_row.set col, o[col]
           else
-            timer.start('agg')
             val = agg.f colVals[agg.col], @idx
-            timer.stop('agg')
             @_row.set agg.alias, val
-        timer.stop('next')
+        timer.stop()
         @_row
 
       hasNext: ->
-        timer.start('hasnext')
         res = @iter.hasNext()
-        timer.stop('hasnext')
         res
       close: -> 
         @iter.close()
-        timer.stop()
 
     new Iter @schema, @table, @aggs, @alias
 

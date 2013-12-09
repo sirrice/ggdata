@@ -1,6 +1,8 @@
 # Stores data as an array of values + schema
 class data.Row
   @ggpackage = "data.Row"
+  @id: -> data.Row::_id += 1
+  _id: 0
 
   # @param data [ value,... ]
   # @param schema 
@@ -8,11 +10,14 @@ class data.Row
     unless @schema?
       throw Error "Row needs a schema"
     
+    @id = @constructor.id()
+    @parents = []
     @data ?= []
     while @data.length < @schema.ncols()
       @data.push null
 
   reset: -> 
+    @parents = []
     @data = []
     @
 
@@ -32,30 +37,10 @@ class data.Row
       cols = _.flatten [cols]
       schema = @schema.project cols
     rowData = _.map cols, (col) => @get col
-    new data.Row schema, rowData
-
-  # This is not performant within a tight loop because it infers the 
-  # merged schema
-  #
-  # XXX: assumes null value means col value not set. e.g., 
-  #      {x: 1}.merge({x:null}) returns {x: 1}
-  #
-  # @param cols columns to merge into this row.  if null, merges all
-  merge: (row, cols=null) ->
-    unless _.isType row, data.Row
-      throw Error "can't merge non row"
-    cols ?= row.schema.cols
-    schema = @schema.clone()
-    schema.merge row.schema
-    ret = new data.Row schema
-    for col in @schema.cols
-      ret.set col, @get(col)
-    for col in cols
-      v = row.get(col)
-      ret.set col, v if v?
-        
+    ret = new data.Row schema, rowData
+    ret.parents.push @id
     ret
-  
+
   # Steal column values from row argument
   # Keep existing schema
   steal: (row, cols=null) ->
@@ -63,12 +48,15 @@ class data.Row
     for col in cols
       v = row.get col
       @set col, v if v?
+    @parents.push row.id
         
     @
 
   shallowClone: ->
     rowData = (d for d in @data)
-    new data.Row @schema, rowData
+    ret = new data.Row @schema, rowData
+    ret.parents.push @id
+    ret
 
   clone: ->
     rowData = for d in @data
@@ -78,16 +66,27 @@ class data.Row
         null
       else
         d
-    new data.Row @schema, rowData
+    ret = new data.Row @schema, rowData
+    ret.parents.push @id
+    ret
 
 
   toJSON: -> 
+    o = {
+      schema: @schema.toJSON()
+      data: @data
+    }
+    for col, idx in @schema.cols
+      o[col] = @data[idx]
+    o
+
+  raw: -> 
     o = {}
     for col, idx in @schema.cols
       o[col] = @data[idx]
     o
-  raw: -> @toJSON()
-  toString: -> JSON.stringify(@toJSON())
+
+  toString: -> JSON.stringify(@raw())
 
   # turns an { } object into a data.Row
   @toRow: (o, schema=null) ->
@@ -103,17 +102,3 @@ class data.Row
       idx = schema.index col
       rowData[idx] = o[col]
     new data.Row schema, rowData
-
-  # given a target row (first arg), pick column values from
-  # list of rows in order (last row overwrites others)
-  @merge: (schema, r1, r2) ->
-    ret = new data.Row schema
-    for col, idx in schema.cols
-      if r2.has col
-        ret.data[idx] = r2.get(col)
-      else
-        ret.data[idx] = r1.get(col)
-    ret
-
-
-

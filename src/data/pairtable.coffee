@@ -70,10 +70,12 @@ class data.PairTable
     createcopy = () -> [canonicalMD.clone()]
     nrows = right.nrows()
     rights = for p in (new data.PairTable(left.project(mapping, no).distinct(), right)).partition(sharedCols)
-      p.left().cross(p.right(), 'outer', null, createcopy)
+      if p.left().nrows() == 1
+        p.right()
+      else
+        p.left().cross(p.right(), 'outer', null, createcopy)
 
     right = new data.ops.Union rights
-    console.log "pairtable.ensure [#{sharedCols}] [#{restCols}] right #{nrows} -> #{right.nrows()}"
     new data.PairTable left, right
 
 

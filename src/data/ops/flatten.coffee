@@ -11,6 +11,7 @@ class data.ops.Flatten extends data.Table
     otherSchema = @schema.project othercols
     super
 
+    @timer().start()
     newtables = @table.map (row) ->
       lefto = _.o2map othercols, (col) ->
         [col, row.get(col)]
@@ -18,6 +19,7 @@ class data.ops.Flatten extends data.Table
       console.log row.get(tablecol)
       right = data.Table.fromArray row.get(tablecol)
       left.cross right
+    @timer().stop()
 
     @iter = new data.ops.Union newtables
 

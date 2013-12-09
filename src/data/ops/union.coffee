@@ -42,8 +42,12 @@ class data.ops.Union extends data.Table
 
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()
+        row = @iter.next()
+        timer.start()
         @_row.reset()
-        @_row.steal @iter.next()
+        @_row.steal row
+        timer.stop()
+        @_row
 
       hasNext: -> 
         if @tableidx >= @tables.length
@@ -60,7 +64,6 @@ class data.ops.Union extends data.Table
 
       close: -> 
         @iter.close() if @iter?
-        timer.stop()
 
     new Iter @schema, @tables
 

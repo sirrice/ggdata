@@ -17,14 +17,17 @@ rows = _.times 1000, (i) ->  {
 }
 t = data.fromArray rows, null, 'col'
 
+
 test = (name, n, table) ->
   perrowCosts = []
+  timer = new data.util.Timer()
   _.times n, (i) ->
+    timer.start()
     table.each(()->)
+    timer.stop()
 
-  timer = table.timer()
-  avgCost = table.timer().avg()
-  setup = table.timer().avg('iter')
+  avgCost = timer.avg()
+  setup = timer.avg('iter')
   console.log "#{name}\ttook: #{avgCost}  #{setup}*#{timer.count('iter')}"#\t#{avgPerRow}/outputrow\t#{d3.mean nrows} rows"
   print table
 
@@ -32,7 +35,6 @@ test = (name, n, table) ->
 print = (t1) ->
   console.log t1.schema.toString()
   console.log t1.raw()[0..10]
-  console.log "timings: #{t1.timings()}"
   console.log "\n"
 
 desc = {
@@ -42,7 +44,13 @@ desc = {
   cols: 'x'
 }
 
-test "* project", 10, t.project({alias: 'foo', type: data.Schema.unknown, f: (row) -> row.get('a')})
+print t.distinct([])
+throw Error
+
+
+table = t.project({alias: 'foo', type: data.Schema.unknown, f: (row) -> row.get('a')})
+test "* project", 10, table
+test "* project", 10, table
 test "col unknown project", 10, t.project({
   alias: 'foo', 
   col: [],
@@ -57,6 +65,16 @@ test "2k projects", 10, table
 table = t
 for i in [1..200]
   table = table.project 'x'
+test "2k raw projects", 10, table
+
+table = t
+for i in [1..200]
+  table = table.blockproject [desc]
+test "2k projects", 10, table
+
+table = t
+for i in [1..200]
+  table = table.blockproject 'x'
 test "2k raw projects", 10, table
 
 ###

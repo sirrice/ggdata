@@ -15,15 +15,16 @@ class data.ops.Offset extends data.Table
         @schema = @table.schema
         @iter = @table.iterator()
         @_next = null
-        timer.start()
         @reset()
 
       reset: -> 
         @iter.reset()
+        timer.start()
         i = 0
         until i >= @n or not @iter.hasNext()
           @iter.next()
           i += 1
+        timer.stop()
 
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()?
@@ -34,7 +35,6 @@ class data.ops.Offset extends data.Table
       close: -> 
         @table = null
         @iter.close()
-        timer.stop()
 
     new Iter @table, @n
 
