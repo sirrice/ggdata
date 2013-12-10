@@ -5,17 +5,21 @@ class data.ops.Flatten extends data.Table
     @schema = @table.schema
     tablecols = _.filter @schema.cols, (col) =>
       @schema.type(col) == data.Schema.table
-    @tablecol = tablecol = tablecols[0]
-    othercols =  _.reject @schema.cols, (col) =>
-      @schema.type(col) == data.Schema.table
-    otherSchema = @schema.project othercols
+    @hasTableCol = no
 
-    if @table.nrows() > 0
+    if tablecols.length > 0 and @table.nrows() > 0
+      @tablecol = tablecol = tablecols[0]
+      othercols =  _.reject @schema.cols, (col) =>
+        @schema.type(col) == data.Schema.table
+      otherSchema = @schema.project othercols
+
       row = @table.any()
       p = row.get tablecol
       @schema = otherSchema.merge p.schema
+      @hasTableCol = yes
 
     super
+    return
 
     @timer().start()
     newtables = @table.map (row) =>
@@ -28,10 +32,10 @@ class data.ops.Flatten extends data.Table
 
     @iter = new data.ops.Union newtables
 
-  nrows: -> @iter.nrows()
   children: -> [@table]
 
   iterator: ->
+    return @table.iterator() unless @hasTableCol
     class Iter
       constructor: (@schema, @table, @tablecol) ->
         @iter = @table.iterator()
