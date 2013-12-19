@@ -13,6 +13,9 @@ class data.Row
     @id = @constructor.id()
     @parents = {}
     @data ?= []
+    # XXX: this is a nasty hack to get end-to-end brushing working
+    #      needs to be removed
+    @svg = {}
     while @data.length < @schema.ncols()
       @data.push null
 
@@ -56,6 +59,7 @@ class data.Row
     rowData = (d for d in @data)
     ret = new data.Row @schema, rowData
     ret.addProv @prov()
+    _.extend(ret.svg, @svg)
     ret
 
   clone: ->
@@ -68,6 +72,7 @@ class data.Row
         d
     ret = new data.Row @schema, rowData
     ret.addProv @prov()
+    _.extend(ret.svg, @svg)
     ret
 
 
@@ -76,6 +81,13 @@ class data.Row
       @parents[id] = yes
 
   prov: -> _.keys @parents
+
+  addSvg: (key, el) ->
+    unless key of @svg
+      @svg[key] = []
+    @svg[key].push el
+
+  getSvg: (key) -> @svg[key] or []
 
   toJSON: -> 
     o = {
