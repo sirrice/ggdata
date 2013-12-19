@@ -41,6 +41,7 @@ class data.ops.Flatten extends data.Table
         @iter = @table.iterator()
         @piter = null
         @currow = null
+        @stealcols = _.without @schema.cols, @tablecol
         @_row = new data.Row @schema
 
       reset: ->
@@ -50,8 +51,8 @@ class data.ops.Flatten extends data.Table
       next: ->
         throw Error unless @hasNext()
         @_row.reset()
-        #@_row.steal @currow
         @_row.steal @piter.next()
+        @_row.steal @currow, @stealcols
         @_row
 
       hasNext: ->
