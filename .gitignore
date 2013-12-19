@@ -1,1 +1,4 @@
 ./lib
+v8.log
+node_modules
+test/test.js
