@@ -67,6 +67,8 @@ class data.PairTable
         }
 
     canonicalMD = new data.Row newrSchema
+    for col in cols
+      canonicalMD.set(col, left.any(col)) if left.has col
     createcopy = () -> 
       row = canonicalMD.clone().reset()
       [row]
