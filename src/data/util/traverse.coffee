@@ -28,6 +28,11 @@ class data.util.Traverse
     path.pop()
     ret
 
+  @roots: (t) ->
+    _.compact @bfs t, (n) ->
+      n if n.children().length == 0
+
+
 
   @toString: (t, f=null) ->
     f ?= (n)->
