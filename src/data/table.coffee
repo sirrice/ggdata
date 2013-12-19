@@ -79,6 +79,8 @@ class data.Table
   # @param f (node, path-to-node) -> anything
   dfs: (f) -> data.util.Traverse.dfs @, f
 
+  roots: -> data.util.Traverse.roots @
+
   # find the columns finalcol depends on.
   # a depends on cols if the cols contains a
   #
@@ -169,6 +171,7 @@ class data.Table
     iter = @iterator()
     row = null
     row = iter.next() if iter.hasNext()
+    row.id = "#{@id}:#{0}"
     iter.close()
     return null unless row?
 
@@ -206,7 +209,11 @@ class data.Table
         @each (row) ->
           ret.push row.get(col)
     else
-      ret = @map (row) -> row.clone()
+      tid = @id
+      ret = @map (row, rowidx) -> 
+        row = row.clone()
+        row.id = "#{tid}:#{rowidx}"
+        row
     ret
 
   raw: -> @map (row) -> row.raw()
