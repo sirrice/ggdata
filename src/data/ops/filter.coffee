@@ -3,7 +3,7 @@
 #
 # { 
 #   col: colname
-#   op: "<", ">", "<=", ">=", "=", "!="
+#   op: "<", ">", "<=", ">=", "=", "!=", 'in', 'of'
 #   val: VALUE
 # }
 #
@@ -81,11 +81,28 @@ class data.ops.Filter extends data.Table
       desc.op ?= '='
 
     if desc.op? and desc.col? 
-      desc.op = switch desc.op
-        when '=' then '=='
-        else desc.op
-      cmd = "(row.get('#{desc.col}') #{desc.op} #{JSON.stringify desc.val})"
-      desc.f = Function("row", "return #{cmd}")
+      desc.f = switch desc.op
+        when '=' 
+          cmd = "(row.get('#{desc.col}') == #{JSON.stringify desc.val})"
+          Function("row", "return #{cmd}")
+        when '<>'
+          cmd = "(row.get('#{desc.col}') != #{JSON.stringify desc.val})"
+          Function("row", "return #{cmd}")
+        when 'in'
+          ((col, val) ->
+            (row) -> row.get(col) in val
+          )(desc.col, desc.val)
+        when 'of'
+          ((col, val) ->
+            (row) -> row.get(col) of val
+          )(desc.col, desc.val)
+        when 'between', 'btwn'
+          lastIdx = desc.val.length-1
+          cmd = "(row.get('#{desc.col}') >= #{desc.val[0]} && row.get('#{desc.col}') <= #{desc.val[1]})"
+          Function("row", "return #{cmd}")
+        else 
+          cmd = "(row.get('#{desc.col}') #{desc.op} #{JSON.stringify desc.val})"
+          Function("row", "return #{cmd}")
     else if desc.f?
       if desc.col? and desc.col != '*' 
         desc.f = ((f, col) ->
