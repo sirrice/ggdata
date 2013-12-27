@@ -33,7 +33,8 @@ class data.ColTable extends data.Table
         @_row.reset()
         for cd, colIdx in @colDatas
           @_row.data[colIdx] = cd[@idx-1]
-        @_row.id = "#{tid}:#{@idx-1}"
+        @_row.id = data.Row.makeId tid, @idx-1
+        prov.Prov.get().add @_row
         @_row.addProv @_row.id
         @_row
       hasNext: -> @idx < @nrows

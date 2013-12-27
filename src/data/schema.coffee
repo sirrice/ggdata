@@ -11,11 +11,14 @@ class data.Schema
   @function = 7
   @table = 8
 
+  @id: -> "schema:#{data.Schema::_id += 1}"
+  _id: 0
 
   constructor: (@cols=[], @types=[], @defaults={}) ->
     if @cols.length != @types.length
       throw Error("len of cols != types #{@cols.length} != #{@types.length}")
 
+    @id = data.Schema.id()
     @col2idx = {}
     _.each @cols, (col, idx) =>
       @col2idx[col] = idx

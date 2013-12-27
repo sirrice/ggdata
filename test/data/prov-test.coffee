@@ -42,7 +42,7 @@ suite.addBatch
 
       "has correct prov": (t) ->
         t.each (row) ->
-          assert.equal row.prov() , "1:#{row.get('x')}"
+          assert.equal row.prov() , "r:1:#{row.get('x')}"
 
     "partition on 'a'":
       topic: (t) -> t.partition 'a'
@@ -51,9 +51,9 @@ suite.addBatch
         t.each (row) ->
           assert.equal row.prov().length, 2
           if row.get('a') == 0
-            assert.deepEqual row.prov(), ['1:0', '1:2']
+            assert.deepEqual row.prov(), ['r:1:0', 'r:1:2']
           else
-            assert.deepEqual row.prov(), ['1:1', '1:3']
+            assert.deepEqual row.prov(), ['r:1:1', 'r:1:3']
 
 
       "then aggregated": 
@@ -63,34 +63,34 @@ suite.addBatch
           t.each (row) ->
             assert.equal row.prov().length, 2
             if row.get('a') == 0
-              assert.deepEqual row.prov(), ['1:0', '1:2']
+              assert.deepEqual row.prov(), ['r:1:0', 'r:1:2']
             else
-              assert.deepEqual row.prov(), ['1:1', '1:3']
+              assert.deepEqual row.prov(), ['r:1:1', 'r:1:3']
 
       "then flattened":
         topic: (t) -> t.flatten()
         "has original prov": (t) -> 
           t.each (row) ->
-            assert.equal row.prov() , "1:#{row.get('x')}"
+            assert.equal row.prov() , "r:1:#{row.get('x')}"
 
 
     "unioned with itself":
       topic: (t) -> t.union t
       "has original prov": (t) -> 
         t.each (row) ->
-          assert.equal row.prov() , "1:#{row.get('x')}"
+          assert.equal row.prov() , "r:1:#{row.get('x')}"
 
     "cached":
       topic: (t) -> t.cache()
       "has original prov": (t) -> 
         t.each (row) ->
-          assert.equal row.prov() , "1:#{row.get('x')}"
+          assert.equal row.prov() , "r:1:#{row.get('x')}"
     
     "once":
       topic: (t) -> t.once()
       "has original prov": (t) -> 
         t.each (row) ->
-          assert.equal row.prov() , "1:#{row.get('x')}"
+          assert.equal row.prov() , "r:1:#{row.get('x')}"
 
       "after running >1 times":
         topic: (t) ->
@@ -99,7 +99,7 @@ suite.addBatch
 
         "has original prov": (t) -> 
           t.each (row) ->
-            assert.equal row.prov() , "1:#{row.get('x')}"
+            assert.equal row.prov() , "r:1:#{row.get('x')}"
 
 
 
@@ -115,14 +115,14 @@ suite.addBatch
           t.each (row) ->
             if row.get('a') == 0
               assert.equal row.prov().length, 1
-              assert.include ['1:0', '1:2'], row.prov()[0]
+              assert.include ['r:1:0', 'r:1:2'], row.prov()[0]
             else
               assert.equal row.prov().length, 2
               truth = [
-                [ '1:1', '2:0' ],
-                [ '1:1', '2:1' ],
-                [ '1:3', '2:0' ],
-                [ '1:3', '2:1' ]].map JSON.stringify
+                [ 'r:1:1', 'r:2:0' ],
+                [ 'r:1:1', 'r:2:1' ],
+                [ 'r:1:3', 'r:2:0' ],
+                [ 'r:1:3', 'r:2:1' ]].map JSON.stringify
               assert.include truth, JSON.stringify(row.prov())
 
       "right join":
@@ -133,14 +133,14 @@ suite.addBatch
             if row.get('a') == 1
               assert.equal row.prov().length, 2
               truth = [
-                [ '1:1', '2:0' ],
-                [ '1:1', '2:1' ],
-                [ '1:3', '2:0' ],
-                [ '1:3', '2:1' ]].map JSON.stringify
+                [ 'r:1:1', 'r:2:0' ],
+                [ 'r:1:1', 'r:2:1' ],
+                [ 'r:1:3', 'r:2:0' ],
+                [ 'r:1:3', 'r:2:1' ]].map JSON.stringify
               assert.include truth, JSON.stringify(row.prov())
             else
               assert.equal row.prov().length, 1
-              assert.include ['2:2'], row.prov()[0]
+              assert.include ['r:2:2'], row.prov()[0]
 
       "as pairtable":
         topic: ([t,r]) -> new data.PairTable t, r
@@ -150,21 +150,22 @@ suite.addBatch
           "left is correct": (pt) ->
             l = pt.left()
             l.each (row) ->
-              assert.equal row.prov() , "1:#{row.get('x')}"
+              assert.equal row.prov() , "r:1:#{row.get('x')}"
+
           "right is correct": (pt) ->
             pt.right().each (row) ->
               switch row.get('a')
                 when 0
                   assert.equal row.prov().length, 1
-                  assert.equal row.prov()[0], '1:0'
+                  assert.equal row.prov()[0], 'r:1:0'
                 when 1
                   assert.equal row.prov().length, 2
                   truth = [
-                    [ '1:1', '2:0' ],
-                    [ '1:1', '2:1' ]].map JSON.stringify
+                    [ 'r:1:1', 'r:2:0' ],
+                    [ 'r:1:1', 'r:2:1' ]].map JSON.stringify
                   assert.include truth, JSON.stringify(row.prov())
                 when 3
                   assert.equal row.prov().length, 1
-                  assert.equal row.prov()[0], '2:2'
+                  assert.equal row.prov()[0], 'r:2:2'
 
 suite.export module

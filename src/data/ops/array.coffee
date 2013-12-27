@@ -4,6 +4,7 @@ class data.ops.Array extends data.Table
   constructor: (@schema, @rows, @_children=[]) ->
     throw Error("Array extends a schema") unless @schema?
     super
+    @setProv()
 
 
   nrows: -> @rows.length
@@ -29,20 +30,23 @@ class data.ops.Array extends data.Table
 
 
   iterator: ->
+    tid = @id
     class Iter
-      constructor: (@rows) ->
+      constructor: (@schema, @rows) ->
         @idx = 0
 
-      reset: -> @idx = 0
+      reset: -> 
+        @idx = 0
 
       next: ->
         throw Error "iterator has no more items" unless @hasNext()
         @idx += 1
+        @rows[@idx-1].id = data.Row.makeId tid, @idx - 1
         @rows[@idx-1]
 
       hasNext: -> @idx < @rows.length
 
       close: -> 
         @rows = null
-    new Iter @rows
+    new Iter @schema, @rows
 

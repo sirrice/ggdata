@@ -3,6 +3,7 @@
 class data.ops.OrderBy extends data.Table
 
   constructor: (@table, @sortCols, @reverse=no) ->
+    super
     schema = @schema = @table.schema
     cols = _.flatten [@sortCols]
     colidxs = (schema.index(col) for col in cols)
@@ -19,13 +20,15 @@ class data.ops.OrderBy extends data.Table
         if v1 < v2
           return -1 * reverse
       return 0
-    super
+
+    @setProv()
 
 
   nrows: -> @table.nrows()
   children: -> [@table]
 
   iterator: ->
+    tid = @id
     timer = @timer()
     class Iter
       constructor: (@table, @cmp) ->
@@ -39,7 +42,9 @@ class data.ops.OrderBy extends data.Table
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()
         @idx += 1
-        @rows[@idx - 1]
+        ret = @rows[@idx - 1]
+        ret.id = data.Row.makeId tid, @idx-1
+        ret
 
       hasNext: -> 
         unless @rows?

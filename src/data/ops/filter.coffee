@@ -20,26 +20,37 @@
 #
 class data.ops.Filter extends data.Table
   constructor: (@table, @descs=[]) ->
+    super
     @f = @constructor.normalizeDescs _.flatten([@descs])
     @schema = @table.schema
-    super
+    @setProv()
 
   children: -> [@table]
 
   iterator: ->
+    tid = @id
     timer = @timer()
+    
     class Iter
       constructor: (@table, @f) ->
         @schema = @table.schema
         @iter = @table.iterator()
         @_next = null
+        @_ret = new data.Row @schema
+        @idx = 0
 
-      reset: -> @iter.reset()
+      reset: -> 
+        @idx = 0
+        @iter.reset()
+
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()?
-        ret = @_next
+        @idx += 1
+        @_ret.reset()
+        @_ret.steal @_next
+        @_ret.id = data.Row.makeId tid, @idx-1
         @_next = null
-        ret
+        @_ret
 
       hasNext: -> 
         return true if @_next?
@@ -55,6 +66,7 @@ class data.ops.Filter extends data.Table
 
       close: -> 
         @table = null
+        @_ret = null
         @iter.close()
 
     new Iter @table, @f

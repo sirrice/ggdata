@@ -1,9 +1,10 @@
 class data.ops.Cross extends data.Table
   constructor: (@left, @right, @jointype, @leftf=null, @rightf=null) ->
+    super
     @schema = @left.schema.clone()
     @schema.merge @right.schema.clone()
     @setup()
-    super
+    @setProv()
 
 
   setup: ->
@@ -64,9 +65,9 @@ class data.ops.Cross extends data.Table
         rrow = @riter.next()
         timer.start()
         @_row.reset()
-        @_row.steal(@lrow)
-        @_row.steal(rrow.clone())
-        @_row.id = "#{tid}:#{@rowidx}"
+        @_row.steal @lrow
+        @_row.steal rrow.clone()
+        @_row.id = data.Row.makeId tid, @rowidx
         @rowidx += 1
         timer.stop()
         @_row

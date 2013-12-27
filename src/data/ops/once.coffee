@@ -4,9 +4,10 @@
 #
 class data.ops.Once extends data.Table
   constructor: (@table) ->
+    super
     @_arraytable = null
     @schema = @table.schema
-    super
+    @setProv()
 
   nrows: -> 
     if @_arraytable?
@@ -49,20 +50,26 @@ class data.ops.Once extends data.Table
         [@table]
       )
 
+    tid = @id
     class Iter
       constructor: (@table) ->
         @iter = @table.iterator()
         @tablecols = _.filter @table.schema.cols, (col) =>
           @table.schema.type(col) == data.Schema.table
         timer.start()
+        @idx = 0
 
-      reset: -> @iter.reset()
+      reset: -> 
+        @iter.reset()
+        @idx = 0
+
       next: ->
-        row = @iter.next()
-        row = row.shallowClone()
+        @idx += 1
+        row = @iter.next().shallowClone()
         for col in @tablecols
           v = row.get col
           row.set col, v.cache() if v?
+        row.id = data.Row.makeId tid, @idx-1
         _rows.push row
 
         unless @iter.hasNext()

@@ -126,6 +126,10 @@ checks = (nrows) ->
           assert.equal row.get('x'), idx
 
 
+  "distinct on a":
+    topic: (t) -> t.distinct 'a'
+    "has 2 rows": (t) ->
+      assert.equal t.nrows(), 2
   
   "partition on a":
     topic: (t) -> t.partition(['a'])
@@ -257,10 +261,46 @@ checks = (nrows) ->
       t2 = data.Table.fromArray rows
       [t, t2]
 
+    "is cached": ->
+      topic: ([t, t2]) -> [t.cache(), t2.cache()]
+
+      "cross product via .cross()":
+        topic: ([t1, t2]) -> t1.cross t2
+        "has 100 rows": (t) ->
+          assert.equal t.nrows(), nrows*nrows
+
+
+      "cross product via join":
+        topic: ([t1, t2]) -> t1.join t2, []
+        "has 100 rows": (t) ->
+          assert.equal t.nrows(), nrows*nrows
+
+      "outer join on x":
+        topic: ([t1, t2]) -> t1.join t2, ['x']
+        "has 15 rows": (t) ->
+          assert.equal t.nrows(), 5+nrows
+
+      "left join on x":
+        topic: ([t1, t2]) -> t1.join t2, ['x'], "left"
+        "has 10 rows": (t) ->
+          assert.equal t.nrows(), nrows
+
+      "right join on x":
+        topic: ([t1, t2]) -> t1.join t2, ['x'], "right"
+        "has 10 rows": (t) ->
+          assert.equal t.nrows(), nrows
+
+      "inner join on x":
+        topic: ([t1, t2]) -> t1.join t2, ['x'], "inner"
+        "has 10 rows": (t) ->
+          assert.equal t.nrows(), nrows - 5
+
+
     "cross product via .cross()":
       topic: ([t1, t2]) -> t1.cross t2
       "has 100 rows": (t) ->
         assert.equal t.nrows(), nrows*nrows
+
 
     "cross product via join":
       topic: ([t1, t2]) -> t1.join t2, []

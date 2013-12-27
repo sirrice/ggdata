@@ -1,6 +1,6 @@
 {
   "name": "ggdata",
-  "version": "0.0.7",
+  "version": "0.0.9",
   "description": "JS implementation basic relational query processing operators.  Includes hooks for provenance",
   "keywords": ["ggplot2", "infovis"],
   "homepage": "https://github.com/sirrice/ggdata",
@@ -26,7 +26,8 @@
     "vows": ">= 0.7.0",
     "browserify": "=2.9.0",
     "jsdom": ">=0.7.0",
-    "ggutil": ">=0.0.2"
+    "ggutil": ">=0.0.3",
+    "ggprov": ">=0.0.1"
   },
   "dependencies": {
     "underscore": ">=1.4.3",

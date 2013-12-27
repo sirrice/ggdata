@@ -24,6 +24,7 @@ class data.ops.Project extends data.Table
   #     { alias: 'x', f: (x) -> x+10, cols: 'x' }
   #
   constructor: (@table, @mappings, @extend=yes) ->
+    super
     @mappings = _.compact _.flatten [@mappings]
     @mappings = @constructor.normalizeMappings @mappings, @table.schema
     @mappings = @constructor.extendMappings @mappings, @table.schema if @extend
@@ -34,11 +35,10 @@ class data.ops.Project extends data.Table
 
     if @table.isFrozen()
       throw Error "cannot project (modify) frozen table"
-    super
+    @setProv()
 
   nrows: -> @table.nrows()
   children: -> [@table]
-
   colDependsOn: (col, type) ->
     cols = _.map @mappings, (desc) ->
       if (col == desc.alias) or (col in _.flatten([desc.alias]))
@@ -101,7 +101,7 @@ class data.ops.Project extends data.Table
         row = @iter.next()
         timer.start()
         @_row.reset()
-        @_row.id = "#{tid}:#{@idx-1}"
+        @_row.id = data.Row.makeId tid, @idx-1
         @_row.addProv row.prov()
         for desc in @mappings
           if desc.isArray

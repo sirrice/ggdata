@@ -1,6 +1,8 @@
 require "./env"
 us = require "underscore"
 assert = require "assert"
+ggprov = require 'ggprov'
+
 
 
 rows = _.times 4, (i) ->  {
@@ -33,6 +35,24 @@ console.log "filter2"
 f = t.filter {col: 'a', f: (a) -> a==0}
 f.each (row) ->
   console.log row.prov()
+
+console.log "filter3"
+f = f.filter {col: 'a', f: (a) -> a==0}
+f.each (row) ->
+  console.log row.prov()
+
+
+
+console.log "Provenance"
+pstore = ggprov.Prov.get()
+console.log pstore.backward([f]).map (t) -> t.id
+console.log pstore.parents(f).map (t) -> t.id
+console.log pstore.forward([t]).map (t) -> t.id
+
+
+throw Error
+
+
 
 console.log "filter"
 f = t.filter ((row)->row.get('a')==0)
@@ -117,8 +137,6 @@ for pt2, idx in pt.partition 'a'
 
 
 
-throw Error
-
 test = (name, n, table) ->
   perrowCosts = []
   timer = new data.util.Timer()
@@ -146,6 +164,8 @@ desc = {
 }
 
 print t.distinct([])
+
+
 throw Error
 
 
@@ -177,6 +197,9 @@ table = t
 for i in [1..200]
   table = table.blockproject 'x'
 test "2k raw projects", 10, table
+
+
+
 
 ###
 

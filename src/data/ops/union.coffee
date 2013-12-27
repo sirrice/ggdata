@@ -4,6 +4,7 @@ class data.ops.Union extends data.Table
 
   # @param arguments are all table or list of tables
   constructor: () ->
+    super
     @tables = _.compact _.flatten arguments
     if @tables.length == 0
       console.log "[W] Union called with 0 tables."
@@ -11,7 +12,7 @@ class data.ops.Union extends data.Table
       @tables = [new data.RowTable(@schema)]
     @schema = data.Schema.merge _.map(@tables, (t)->t.schema)
     @ensureSchema()
-    super
+    @setProv()
 
   ensureSchema: ->
     for table, idx in @tables
@@ -29,23 +30,28 @@ class data.ops.Union extends data.Table
 
   children: -> @tables
   iterator: ->
+    tid = @id
     timer = @timer()
     class Iter
       constructor: (@schema, @tables) ->
         @_row = new data.Row @schema
+        @idx = 0
         @reset()
 
       reset: -> 
         @tableidx = -1
+        @idx = 0
         @iter = null
         timer.start()
 
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()
+        @idx += 1
         row = @iter.next()
         timer.start()
         @_row.reset()
         @_row.steal row
+        @_row.id = data.Row.makeId tid, @idx-1
         timer.stop()
         @_row
 

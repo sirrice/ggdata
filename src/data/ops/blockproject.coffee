@@ -28,6 +28,7 @@ class data.ops.BlockProject extends data.ops.Project
 
   iterator: ->
     @inferUnknownCols()
+    tid = @id
 
     timer = @timer()
     class BlockIter
@@ -49,6 +50,7 @@ class data.ops.BlockProject extends data.ops.Project
         throw Error("no more elements") unless @hasNext()
         @idx += 1
         row = @_rows[@_blockidx]
+        row.id = data.Row.makeId tid, @idx-1
         @_blockidx += 1
         row
 

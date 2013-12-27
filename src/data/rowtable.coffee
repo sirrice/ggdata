@@ -31,7 +31,7 @@ class data.RowTable extends data.Table
         @idx += 1
         @_row.reset()
         @_row.data = @table.rows[@idx-1]
-        @_row.id = "#{tid}:#{@idx-1}"
+        @_row.id = data.Row.makeId tid, @idx-1
         @_row.addProv @_row.id
         @_row
       hasNext: -> @idx < @nrows

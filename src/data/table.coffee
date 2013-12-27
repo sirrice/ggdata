@@ -1,5 +1,7 @@
 #<< data/util/*
 
+ggprov = require 'ggprov'
+
 #
 # The data model consists of a list of tuples (rows)
 #
@@ -19,7 +21,7 @@ class data.Table
   @ggpackage = "data.Table"
   @log = data.util.Log.logger @ggpackage, "Table"
   @timer = new data.util.Timer(100)
-  @id: -> data.Table::_id += 1
+  @id: -> "t:#{data.Table::_id += 1}"
   _id: 0
 
   constructor: ->
@@ -35,6 +37,21 @@ class data.Table
   timer: -> @_timer ?= new data.util.Timer()
 
   timings: (name) -> @timer().timings name
+
+  pstore: -> ggprov.Prov.get()
+
+  setProv: ->
+    pstore = @pstore()
+    pstore.tag @, "table"
+    for child in @children()
+      pstore.connect child, @, "table"
+
+    # schema col provenance
+    for col in @cols()
+      @pstore().connect @, col, 'col'
+      deps = @colDependsOn col
+      for dep in deps
+        @pstore().connect col, dep, 'coldep'
 
 
   # 

@@ -8,6 +8,7 @@ class data.ops.HashJoin extends data.Table
   #          () -> new data.Row(t1.schema/t2.schema)
   #
   constructor: (@t1, @t2, @joincols, @jointype, @leftf=null, @rightf=null) ->
+    super
     @joincols = _.flatten [@joincols]
     @schema = @t1.schema.clone()
     @schema.merge @t2.schema.clone()
@@ -17,13 +18,14 @@ class data.ops.HashJoin extends data.Table
     @ht1 = data.ops.Util.buildHT @t1, @joincols
     @ht2 = data.ops.Util.buildHT @t2, @joincols
     @timer().stop()
-    super
 
     # methods to create dummy rows for outer/left/right joins
     schema1 = @t1.schema.clone()
     schema2 = @t2.schema.clone()
     @leftf ?= -> new data.Row schema1
     @rightf ?= -> new data.Row schema2
+
+    @setProv()
 
   # make sure joincols are present in t1 and t2
   ensureSchema: ->
@@ -35,6 +37,7 @@ class data.ops.HashJoin extends data.Table
 
   children: -> [@t1, @t2]
   iterator: ->
+    tid = 0
     timer = @timer()
     class Iter
       constructor: (@schema, @lschema, @rschema, @ht1, @ht2, @jointype, @leftf, @rightf) ->
@@ -52,16 +55,21 @@ class data.ops.HashJoin extends data.Table
           else
             @keys = _.uniq _.flatten [keys1, keys2]
 
+        @idx = 0
         @reset()
 
       reset: -> 
         @keyidx = -1
         @key = null
         @iter = null
+        @idx = 0
 
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()
-        @iter.next()
+        ret = @iter.next()
+        @idx += 1
+        ret.id = data.Row.makeId tid, @idx-1
+        ret
 
       hasNext: -> 
         if @iter? and not @iter.hasNext()

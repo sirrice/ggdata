@@ -1,7 +1,8 @@
 # Stores data as an array of values + schema
 class data.Row
   @ggpackage = "data.Row"
-  @id: -> data.Row::_id += 1
+  @id: -> @makeId -1, (data.Row::_id += 1)
+  @makeId: (tid, rid) -> "r:#{tid}:#{rid}"
   _id: 0
 
   # @param data [ value,... ]
@@ -10,18 +11,19 @@ class data.Row
     unless @schema?
       throw Error "Row needs a schema"
     
-    @id = @constructor.id()
+    # universally unique row id
+    @rid = @constructor.id()
+    # id set by the table
+    @id = @rid
+
     @parents = {}
     @data ?= []
-    # XXX: this is a nasty hack to get end-to-end brushing working
-    #      needs to be removed
-    @svg = {}
     while @data.length < @schema.ncols()
       @data.push null
 
   reset: -> 
-    @parents = []
     @data = []
+    @parents = {}
     @
 
   cols: -> @schema.cols
@@ -46,12 +48,18 @@ class data.Row
 
   # Steal column values from row argument
   # Keep existing schema
-  steal: (row, cols=null) ->
+  # @param prov should we copy provenance info from @param row
+  steal: (row, cols=null, prov=yes) ->
+    set = no
     cols ?= @schema.cols
     for col in cols
       v = row.get col
-      @set col, v if v?
-    @addProv row.prov() if row?
+      if v?
+        @set col, v
+        set = yes
+
+    if set and prov
+      @addProv row.prov() 
         
     @
 
@@ -59,7 +67,6 @@ class data.Row
     rowData = (d for d in @data)
     ret = new data.Row @schema, rowData
     ret.addProv @prov()
-    _.extend(ret.svg, @svg)
     ret
 
   clone: ->
@@ -72,7 +79,6 @@ class data.Row
         d
     ret = new data.Row @schema, rowData
     ret.addProv @prov()
-    _.extend(ret.svg, @svg)
     ret
 
 
@@ -81,13 +87,6 @@ class data.Row
       @parents[id] = yes
 
   prov: -> _.keys @parents
-
-  addSvg: (key, el) ->
-    unless key of @svg
-      @svg[key] = []
-    @svg[key].push el
-
-  getSvg: (key) -> @svg[key] or []
 
   toJSON: -> 
     o = {

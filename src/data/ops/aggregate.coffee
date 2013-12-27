@@ -1,5 +1,6 @@
 #<< data/table
 
+
 class data.ops.Aggregate extends data.Table
   # don't care about column value.  
   # fills it in with 1s
@@ -18,34 +19,31 @@ class data.ops.Aggregate extends data.Table
   #        will try to sniff it out
   # XXX: support incremental aggs
   constructor: (@table, @aggs, @alias=null) ->
-    @alias ?= @sniffAlias()
+    super
+
+    @alias ?= @constructor.sniffAlias @table.schema
     @schema = @table.schema
     unless @schema.has @alias
       throw Error("agg schema doesn't have table column #{@alias}: #{@schema.toString}")
     if @table.isFrozen()
       #console.log @table
       throw Error "cannot project (modify) frozen table"
-    super
 
     @schema = @schema.exclude @alias
     @parseAggs()
-
-  sniffAlias: ->
-    schema = @table.schema
-    for col in schema.cols
-      if schema.type(col) == data.Schema.table
-        return col
-    throw Error "could not find column with table type! #{schema.toString()}"
+    @setProv()
 
 
   nrows: -> @table.nrows()
   children: -> [@table]
+
   colDependsOn: (col, type) ->
     _.compact _.flatten _.map @aggs, (agg) ->
       if (col == agg.alias) or (col in _.flatten([agg.alias]))
         agg.col
 
   iterator: ->
+    tid = @id
     timer = @timer()
     class Iter
       constructor: (@schema, @table, @aggs, @tablealias) ->
@@ -68,14 +66,14 @@ class data.ops.Aggregate extends data.Table
         colVals = _.o2map cols, (col) -> [col, []]
         partition = row.get @tablealias
 
-        prov = []
+        depRows = []
         partition.each (prow) ->
           for col in cols
             if col != data.ops.Aggregate.STAR
               colVals[col].push prow.get(col)
             else
               colVals[col].push 1
-            prov.push.apply prov, prow.prov()
+            depRows.push.apply depRows, prow.prov()
 
         for agg in @aggs
           if _.isArray agg.alias
@@ -85,7 +83,9 @@ class data.ops.Aggregate extends data.Table
           else
             val = agg.f colVals[agg.col], @idx
             @_row.set agg.alias, val
-        @_row.addProv prov
+        @_row.id = data.Row.makeId tid, @idx-1
+        prov.Prov.get()
+        @_row.addProv depRows
         timer.stop()
 
         @_row
@@ -123,7 +123,13 @@ class data.ops.Aggregate extends data.Table
       agg.col = data.ops.Aggregate.STAR
     agg
 
-   
+   @sniffAlias: (schema) ->
+    for col in schema.cols
+      if schema.type(col) == data.Schema.table
+        return col
+    throw Error "could not find column with table type! #{schema.toString()}"
+
+  
 
 
   #

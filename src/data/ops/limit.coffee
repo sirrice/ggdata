@@ -2,8 +2,9 @@
 
 class data.ops.Limit extends data.Table
   constructor: (@table, @n) ->
-    @schema = @table.schema
     super
+    @schema = @table.schema
+    @setProv()
 
   nrows: ->
     Math.min @table.nrows(), @n
@@ -11,12 +12,14 @@ class data.ops.Limit extends data.Table
   children: -> [@table]
 
   iterator: ->
+    tid = @id
     timer = @timer()
     class Iter
       constructor: (@table, @n) ->
         @schema = @table.schema
         @iter = @table.iterator()
         @idx = 0
+        @_ret = new data.Row @schema
 
       reset: -> 
         @iter.reset()
@@ -25,7 +28,10 @@ class data.ops.Limit extends data.Table
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()?
         @idx += 1
-        @iter.next()
+        @_ret.reset()
+        @_ret.steal @iter.next()
+        @_ret.id = data.Row.makeId tid, @idx-1
+        @_ret
 
       hasNext: -> @idx < @n and @iter.hasNext()
 

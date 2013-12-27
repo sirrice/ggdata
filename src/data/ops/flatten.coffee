@@ -2,6 +2,8 @@
 
 class data.ops.Flatten extends data.Table
   constructor: (@table) ->
+    super
+
     @schema = @table.schema
     tablecols = _.filter @schema.cols, (col) =>
       @schema.type(col) == data.Schema.table
@@ -18,24 +20,15 @@ class data.ops.Flatten extends data.Table
       @schema = otherSchema.merge p.schema
       @hasTableCol = yes
 
-    super
-    return
+    @setProv()
 
-    @timer().start()
-    newtables = @table.map (row) =>
-      lefto = _.o2map othercols, (col) ->
-        [col, row.get(col)]
-      left = new data.ops.Array otherSchema, [lefto], [@table]
-      right = row.get(tablecol).cache()
-      left.cross right
-    @timer().stop()
-
-    @iter = new data.ops.Union newtables
 
   children: -> [@table]
 
   iterator: ->
     return @table.iterator() unless @hasTableCol
+    tid = @id
+
     class Iter
       constructor: (@schema, @table, @tablecol) ->
         @iter = @table.iterator()
@@ -43,16 +36,20 @@ class data.ops.Flatten extends data.Table
         @currow = null
         @stealcols = _.without @schema.cols, @tablecol
         @_row = new data.Row @schema
+        @idx = 0
 
       reset: ->
         @piter.reset() if @piter?
         @iter.reset()
+        @idx = 0
 
       next: ->
         throw Error unless @hasNext()
+        @idx += 1
         @_row.reset()
+        @_row.steal @currow, @stealcols, no
         @_row.steal @piter.next()
-        @_row.steal @currow, @stealcols
+        @_row.id = data.Row.makeId tid, @idx-1
         @_row
 
       hasNext: ->
