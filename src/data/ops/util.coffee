@@ -25,10 +25,8 @@ class data.ops.Util
       when "outer"
         unless lhasRows
           lefts = rights
-          rights = [null]
           rights = [leftf()]
         else unless rhasRows
-          rights = [null]
           rights = [rightf()]
 
 
@@ -80,18 +78,13 @@ class data.ops.Util
         rows.push row
     return rows
 
-  #
-  # build hash table based on equality of columns
-  # @param cols columns to use for equality test
-  # @return [ht, keys]  where
-  #   ht = JSON.stringify(key) -> rows
-  #   keys: JSON.stringify(key) -> key
-  @buildHT: (t, cols) ->
+  @createKeyF: (cols, schema) ->
     objcols = {}
-    for col in cols
-      if t.schema.type(col) == data.Schema.object
-        objcols[col] = yes
-
+    if schema?
+      for col in cols
+        if schema.type(col) == data.Schema.object
+          objcols[col] = yes
+ 
     getkey = (row) -> 
       vals = []
       res = ""
@@ -103,8 +96,18 @@ class data.ops.Util
             res += "#{k}++#{vv}"
         else
           res += v
+        res += "::"
       [vals, res]
 
+
+  #
+  # build hash table based on equality of columns
+  # @param cols columns to use for equality test
+  # @return [ht, keys]  where
+  #   ht = JSON.stringify(key) -> rows
+  #   keys: JSON.stringify(key) -> key
+  @buildHT: (t, cols) ->
+    getkey = @createKeyF cols, t.schema
 
     ht = {}
     t.each (oldrow) ->

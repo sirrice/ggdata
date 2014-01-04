@@ -5,9 +5,9 @@ ggprov = require 'ggprov'
 
 
 
-rows = _.times 4, (i) ->  {
+rows = _.times 10, (i) ->  {
     a: i%2, 
-    b: "#{i}"
+    b: i%3
     c: i%5
     d: i%10
     e: i%100
@@ -18,6 +18,54 @@ rows = _.times 4, (i) ->  {
     }
 }
 t = data.fromArray rows, null, 'col'
+
+testf = (name, n, f) ->
+  timer = new data.util.Timer()
+  _.times n, (i) ->
+    timer.start()
+    f()
+    timer.stop()
+  console.log "#{name}\ttook: #{timer.avg()}"
+
+
+
+pt = new data.PairTable t, t
+
+f = (pt) ->
+  pt.ensure ['a', 'c']
+  pt.partitionOn ['a', 'c']
+
+
+testf "nopartition", 20, () -> f pt
+pt = pt.partitionOn ['a', 'c']
+testf "partition", 20, () -> f pt
+
+pts = for [key, tmp] in pt.partition ['a', 'c']
+  tmp.partitionOn ['a', 'c']
+testf "makefrompts", 20, () -> 
+  data.PartitionedPairTable.fromPairTables pts
+
+pt = data.PartitionedPairTable.fromPairTables pts
+testf "frompts", 20, () -> f pt
+
+testf "addsharedcol", 20, () ->
+  pt.addSharedCol '_barrier', 0
+pt = pt.addSharedCol '_barrier', 0
+testf "addedsharedocl", 20, () ->
+  pt.partitionOn ['a', 'c', "_barrier"]
+
+console.log pt.table.all('_barrier')
+pt = pt.partitionOn ['b']
+console.log pt.table.all('_barrier')
+
+pt = pt.rmSharedCol '_barrier'
+console.log pt.left().any('_barrier')
+
+
+console.log pt.partition(['a', 'c']).map (p) -> p[0]
+
+throw Error
+
 t.each (row) ->
   console.log "#{row.get('x')} #{row.prov()}"
 

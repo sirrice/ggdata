@@ -55,7 +55,7 @@ class data.RowTable extends data.Table
       row = _.clone row
       unless row.length == @schema.ncols()
         if row.length > @schema.ncols() or not pad
-          throw Error "row len wrong: #{row.length} != #{@schema.length}"
+          throw Error "row len wrong: #{row.length} != #{@schema.ncols()}"
         else
           for i in [0...(@schema.ncols()-row.length)]
             row.push null

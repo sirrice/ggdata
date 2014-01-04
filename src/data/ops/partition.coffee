@@ -8,7 +8,9 @@ class data.ops.Partition extends data.Table
   constructor: (@table, @partcols, @alias='table') ->
     super
     @partcols = _.flatten [@partcols]
-    @schema = @table.schema.clone()#.project @partcols
+    # clone schema so we copy nonpartition cols like fill
+    # TODO: fix this
+    @schema = @table.schema.clone() # .project @partcols
     @schema.addColumn @alias, data.Schema.table
     @ht = null
     @setProv()
