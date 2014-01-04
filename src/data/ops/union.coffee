@@ -10,11 +10,11 @@ class data.ops.Union extends data.Table
       console.log "[W] Union called with 0 tables."
       @schema = new data.Schema [], []
       @tables = [new data.RowTable(@schema)]
-    @schema = data.Schema.merge _.map(@tables, (t)->t.schema)
     @ensureSchema()
     @setProv()
 
   ensureSchema: ->
+    @schema = data.Schema.merge _.map(@tables, (t)->t.schema)
     for table, idx in @tables
       unless @schema.equals table.schema
         schemahas = _.reject @schema.cols, (col) -> table.has col

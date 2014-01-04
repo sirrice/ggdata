@@ -29,7 +29,33 @@ testf = (name, n, f) ->
 
 
 
+pstore = ggprov.Prov.get()
 pt = new data.PairTable t, t
+console.log t.id
+ppt = pt.partitionOn []
+console.log ppt.left().id, ppt.right().id
+console.log pstore.forward([t], 'table').map (n) -> n.id
+console.log
+
+console.log
+console.log ppt.cols
+ppt = ppt.addSharedCol('d', 1)
+console.log ppt.left().id, ppt.right().id
+console.log pstore.forward([pt.left()], 'table').map (n) -> n.id
+
+console.log ppt.cols
+ppt = data.PartitionedPairTable.fromPairTables [ppt, ppt]
+console.log ppt.left().id, ppt.right().id
+console.log pstore.forward([pt.left()], 'table').map (n) -> n.id
+console.log pstore.forward([ppt.left()], 'table').map (n) -> n.id
+
+
+
+
+
+throw Error
+
+pt.ensure ['a', 'c']
 
 f = (pt) ->
   pt.ensure ['a', 'c']
@@ -63,6 +89,8 @@ console.log pt.left().any('_barrier')
 
 
 console.log pt.partition(['a', 'c']).map (p) -> p[0]
+
+console.log ggprov.Prov.get().backward([pt.left()], 'table')
 
 throw Error
 

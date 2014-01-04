@@ -15,7 +15,7 @@ class data.PartitionedPairTable extends data.PairTable
     @keyf = data.ops.Util.createKeyF cols, @table.schema
 
     # cache a local clone of the rows, these will be update in place
-    @table = @table.cache() #unless _.isType @table, data.ops.Array
+    @table = @table.cache() unless _.isType @table, data.ops.Array
     @ht = {}
     @rows = @table.rows
     for row in @rows
@@ -27,31 +27,55 @@ class data.PartitionedPairTable extends data.PairTable
       else
         @ht[str] = row
 
+    @left_ = null
+    @right_ = null
+
+  addProv: (lefts, rights)->
+    lefts = _.compact _.flatten [lefts]
+    rights = _.compact _.flatten [rights]
+    pstore = ggprov.Prov.get()
+    for l in lefts
+      pstore.connect l, @left(), 'table'
+    for r in rights
+      pstore.connect r, @right(), 'table'
     
 
   left: (t) ->
     if t?
       throw Error "PartitionedPairTable cannot set left"
-    ls = []
-    for row in _.values @ht
-      ls.push row.get('left')
-    new data.ops.Union ls
+    ls = @lefts()
+    if @left_?
+      @left_.tables = ls
+      @left_.ensureSchema()
+      @left_.setProv()
+    else
+      @left_ = new data.ops.Union ls
+      ggprov.Prov.get().connect @table, @left_, 'table'
+    @left_
 
-  lefts: -> @rows.map (row) -> row.get 'left'
+  lefts: -> _.compact @rows.map (row) -> row.get 'left'
 
   right: (t) ->
     if t?
       throw Error "PartitionedPairTable cannot set right"
-    rs = []
-    for row in _.values @ht
-      rs.push row.get 'right'
-    new data.ops.Union rs
+    rs = @rights()
+    if @right_?
+      @right_.tables = rs
+      @right_.ensureSchema()
+      @right_.setProv()
+    else
+      @right_ = new data.ops.Union rs
+      ggprov.Prov.get().connect @table, @right_, 'table'
+    @right_
 
-  rights: -> @rows.map (row) -> row.get 'right'
+  rights: -> _.compact @rows.map (row) -> row.get 'right'
 
   leftSchema: -> @lschema
   rightSchema: -> @rschema
-  clone: -> new data.PartitionedPairTable @table, @cols, @lschema, @rschema
+  clone: -> 
+    ret = new data.PartitionedPairTable @table, @cols, @lschema, @rschema
+    ret.addProv @left(), @right()
+    ret
 
   rmSharedCol: (col) ->
     unless col in @cols
@@ -63,14 +87,11 @@ class data.PartitionedPairTable extends data.PairTable
     cols = _.without @cols, col
 
     rows = for row in @rows
-      cur = row.project schema
-      if cur.get('left')?
-        cur.set 'left', cur.get('left').cache()
-      if cur.get('right')?
-        cur.set 'right', cur.get('right').cache()
-      cur
-    table = new data.ops.Array schema, rows, @table
-    return new data.PartitionedPairTable table, cols, lschema, rschema
+      schema.cols.map (c) -> row.get c
+    table = new data.RowTable schema, rows
+    ret = new data.PartitionedPairTable table, cols, lschema, rschema
+    ret.addProv @left(), @right()
+    ret
 
   addSharedCol: (col, val, type) ->
     if col in @cols
@@ -82,22 +103,18 @@ class data.PartitionedPairTable extends data.PairTable
     cols = @cols.concat [col]
 
     rows = for row in @rows
-      newrow = new data.Row schema
-      newrow.steal row
-      newrow.set col, val
-      newrow
-    table = new data.ops.Array schema, rows, @table
-    new data.PartitionedPairTable table, cols, @lschema, @rschema
+      row = row.data.map _.identity
+      row.push val
+      row
+    table = new data.RowTable schema, rows
+    ret = new data.PartitionedPairTable table, cols, @lschema, @rschema
+    ret.addProv @left(), @right()
+    ret
 
   unpartition: ->
-    ls = []
-    rs = []
-    for row in _.values @ht
-      ls.push row.get('left')
-      rs.push row.get 'right'
     new data.PairTable(
-      new data.ops.Union ls
-      new data.ops.Union rs
+      @left()
+      @right()
     )
 
   update: (key, pt) ->
@@ -121,7 +138,10 @@ class data.PartitionedPairTable extends data.PairTable
             right: pt.right()
           }
       }
-      return new data.PartitionedPairTable newtable, @cols, @lschema, @rschema
+      ret = new data.PartitionedPairTable newtable, @cols, @lschema, @rschema
+      ret.addProv @left(), @right()
+      return ret
+
     return @
 
 
@@ -146,10 +166,12 @@ class data.PartitionedPairTable extends data.PairTable
         [key, new data.PairTable(l, r)]
     else
       for key, row of @ht
-        [key, new data.PairTable(row.get('left'), row.get('right'))]
+        l = row.get 'left'
+        r = row.get 'right'
+        [key, new data.PairTable(l, r)]
 
   partitionOn: (cols) ->
-    cols = _.flatten [cols]
+    cols = _.compact _.flatten [cols]
     diffcols = _.difference(cols, @cols)
     mycols = _.difference @cols, cols
     if diffcols.length > 0
@@ -166,8 +188,11 @@ class data.PartitionedPairTable extends data.PairTable
         proj = partitions.partition.project mapping
         newtables.push proj
       union = new data.ops.Union newtables
-      return new data.PartitionedPairTable union, _.union(@cols,cols), @lschema, @rschema
-    return @
+      ret = new data.PartitionedPairTable union, _.union(@cols,cols), @lschema, @rschema
+      ret.addProv @left(), @right()
+      ret
+    else
+      @
 
       
   @fromPairTables: (pts) ->
@@ -180,21 +205,20 @@ class data.PartitionedPairTable extends data.PairTable
       else
         [l, r] = [pt.left(), pt.right()]
         schema = new data.Schema ['left', 'right'], [data.Schema.table, data.Schema.table]
-        row = new data.Row schema, [l, r]
-        table = new data.ops.Array schema, [row], [l, r]
-        new data.PartitionedPairTable table, [], pt.leftSchema(), pt.rightSchema()
+        table = new data.RowTable schema, [[l, r]]
+        newppt = new data.PartitionedPairTable table, [], pt.leftSchema(), pt.rightSchema()
+        newppt.addProv l, r
+        newppt
+
     cols = _.keys cols
 
     rows = []
-    provtables = []
     ppts = for pt in pts
       pt = pt.partitionOn cols
       rows.push.apply rows, pt.table.rows
-      provtables.push pt.left()
-      provtables.push pt.right()
       pt
 
-    newtable = new data.ops.Array ppts[0].table.schema, rows, provtables
+    newtable = new data.ops.Array ppts[0].table.schema, rows
     new data.PartitionedPairTable newtable, cols, pts[0].leftSchema(), pts[0].rightSchema()
 
 
