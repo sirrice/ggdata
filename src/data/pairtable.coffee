@@ -37,9 +37,18 @@ class data.PairTable
     @
 
   partitionOn: (cols, type='outer') ->
-    cols = _.flatten [cols]
-    o = data.PairTable.partition @left(), @right(), cols, type
-    new data.PartitionedPairTable o.partition, cols, @leftSchema(), @rightSchema()
+    cols = _.compact _.flatten [cols]
+    if cols.length == 0
+      schema = new data.Schema(
+        ['left', 'right']
+        [data.Schema.table, data.Schema.table]
+      )
+      row = new data.Row schema, [@left(), @right()]
+      table = new data.ops.Array schema, [row]
+      new data.PartitionedPairTable table, cols, @leftSchema(), @rightSchema()
+    else
+      o = data.PairTable.partition @left(), @right(), cols, type
+      new data.PartitionedPairTable o.partition, cols, @leftSchema(), @rightSchema()
 
   # create a list of pairtables.  one for each partition
   partition: (cols, type='outer') ->
@@ -69,6 +78,15 @@ class data.PairTable
     if log? and unknownCols.length > 0
       log.warn "ensure dropping unknown cols: #{unknownCols}"
 
+    # fast path if we know nothing needs to be ensured
+    if cols.length == 0
+      if right.nrows() == 0
+        row = new data.Row right.schema
+        right = new data.ops.Array right.schema, row
+        return new data.PairTable left, right
+      return new data.PairTable left, right
+
+
     newrSchema = right.schema.clone()
     newrSchema.merge left.schema.project(restCols)
     mapping = _.map cols, (col) =>
@@ -81,8 +99,19 @@ class data.PairTable
           type: right.schema.type(col)
           cols: []
         }
-
     canonicalMD = new data.Row newrSchema
+
+    # fast path if right doesn't have any of the ensured cols
+    if sharedCols.length == 0
+      distinct = left.project(mapping, no).distinct()
+      right = distinct.cross right, 'left', null, () -> 
+        canonicalMD.clone()
+      return new data.PairTable left, right
+
+
+
+
+
     for col in cols
       canonicalMD.set(col, left.any(col)) if left.has col
     createcopy = () -> 
