@@ -21,7 +21,7 @@ class data.Table
   @ggpackage = "data.Table"
   @log = data.util.Log.logger @ggpackage, "Table"
   @timer = new data.util.Timer(100)
-  @id: -> "t:#{data.Table::_id += 1}"
+  @id: -> "t#{data.Table::_id += 1}"
   _id: 0
 
   constructor: ->
@@ -39,6 +39,8 @@ class data.Table
 
   pstore: -> ggprov.Prov.get()
 
+
+
   setProv: ->
     pstore = @pstore()
     pstore.tag @, "table"
@@ -54,7 +56,7 @@ class data.Table
 
 
   # 
-  # Required methods
+  # Required/Overridable methods
   #
 
   # Internal function that returns a data.Row iterator
@@ -63,42 +65,12 @@ class data.Table
 
   toSQL: -> throw Error("toSQL not implemented")
 
-  #####
-  # Provenance related methods
-  #####
-  
-  #
-  # Overridable methods
-  #
-
   # the tables accessed by this table
   children: -> []
 
   # return columns that {@param col} depends on
   colDependsOn: (col, type) ->
     cols = _.flatten [col]
-
-
-  # find the columns finalcol depends on.
-  # a depends on cols if the cols contains a
-  #
-  # @param finalcol the column to compute the provenance for
-  colProv: (finalcol, targetTableName=null) ->
-    lookup = {}
-    lookup[@id] = [finalcol]
-    res = data.util.Traverse.bfs @, (node) ->
-      return if node.children().length == 0
-      cols = lookup[node.id]
-
-      prov = _.flatten _.map cols, (col) -> node.colDependsOn col
-      for c in node.children()
-        lookup[c.id] = prov
-
-      if finalcol in cols 
-        if not(targetTableName?) or targetTableName == node.name
-          return cols 
-      []
-    _.uniq _.compact _.flatten res
 
 
 

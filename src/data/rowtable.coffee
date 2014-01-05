@@ -11,6 +11,7 @@ class data.RowTable extends data.Table
     @rows = []
     _.each rows, (row) => @addRow row
     @log = data.Table.log
+    @setProv()
 
   nrows: -> @rows.length
   tabletype: -> "row"

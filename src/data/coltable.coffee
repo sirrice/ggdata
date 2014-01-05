@@ -9,6 +9,7 @@ class data.ColTable extends data.Table
     super
     @colDatas ?= _.times @schema.ncols(), ()->[]
     @log = data.Table.log
+    @setProv()
 
   nrows: -> 
     if @colDatas.length == 0 then 0 else @colDatas[0].length
