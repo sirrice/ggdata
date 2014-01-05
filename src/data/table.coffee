@@ -27,7 +27,6 @@ class data.Table
   constructor: ->
     @id = data.Table.id()
     @name ?= @constructor.name 
-    @frozen = no
     unless @name?
       print @
       throw Error
@@ -374,20 +373,6 @@ class data.Table
     partition2 = table.partition cols
     partition1.join partition2, cols, type
 
-  freeze: -> 
-    new data.ops.Freeze @
-
-  isFrozen: ->
-    return @frozen if @frozen
-    return @_isfrozen if @_isfrozen?
-    for child in @children()
-      if child.isFrozen()
-        @frozen = yes
-        break
-    @_isfrozen = @frozen
-    @frozen
-
-  melt: -> @
 
 
 
