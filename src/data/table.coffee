@@ -287,10 +287,6 @@ class data.Table
     else
       new data.ops.Once @
 
-  # remove children from provenance traces
-  disconnect: ->
-    new data.ops.DisconnectedTable @
-
   union: (tables...) ->
     tables = _.compact _.flatten tables
     new data.ops.Union @, tables
