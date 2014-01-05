@@ -15,8 +15,8 @@ class data.ops.HashJoin extends data.Table
     @ensureSchema()
     @getkey = (row) -> _.map cols, (col) -> row.get(col)
     @timer().start()
-    @ht1 = data.ops.Util.buildHT @t1, @joincols
-    @ht2 = data.ops.Util.buildHT @t2, @joincols
+    @ht1 = null
+    @ht2 = null
     @timer().stop()
 
     # methods to create dummy rows for outer/left/right joins
@@ -38,23 +38,11 @@ class data.ops.HashJoin extends data.Table
   children: -> [@t1, @t2]
   iterator: ->
     tid = 0
+    _me = @
     timer = @timer()
     class Iter
-      constructor: (@schema, @lschema, @rschema, @ht1, @ht2, @jointype, @leftf, @rightf) ->
-        keys1 = _.keys @ht1
-        keys2 = _.keys @ht2
-        switch @jointype
-          when "inner"
-            @keys = _.intersection keys1, keys2
-          when "left"
-            @keys = keys1
-          when "right"
-            @keys = keys2
-          when "outer"
-            @keys = _.uniq _.flatten [keys1, keys2]
-          else
-            @keys = _.uniq _.flatten [keys1, keys2]
-
+      constructor: (@schema, @lschema, @rschema, @jointype, @leftf, @rightf) ->
+        @keyidx = -1
         @idx = 0
         @reset()
 
@@ -72,6 +60,27 @@ class data.ops.HashJoin extends data.Table
         ret
 
       hasNext: -> 
+        unless _me.ht1?
+          _me.ht1 = data.ops.Util.buildHT _me.t1, _me.joincols
+          _me.ht2 = data.ops.Util.buildHT _me.t2, _me.joincols
+
+        unless @keys?
+          keys1 = _.keys _me.ht1
+          keys2 = _.keys _me.ht2
+          switch @jointype
+            when "inner"
+              @keys = _.intersection keys1, keys2
+            when "left"
+              @keys = keys1
+            when "right"
+              @keys = keys2
+            when "outer"
+              @keys = _.uniq _.flatten [keys1, keys2]
+            else
+              @keys = _.uniq _.flatten [keys1, keys2]
+
+
+
         if @iter? and not @iter.hasNext()
           @iter.close()
           @iter = null
@@ -80,12 +89,12 @@ class data.ops.HashJoin extends data.Table
         while @iter is null and @keyidx < @keys.length
           @keyidx += 1
           @key = @keys[@keyidx]
-          if @key of @ht1
-            left = @ht1[@key].rows
+          if @key of _me.ht1
+            left = _me.ht1[@key].rows
           else
             left = new data.RowTable @lschema
-          if @key of @ht2
-            right = @ht2[@key].rows
+          if @key of _me.ht2
+            right = _me.ht2[@key].rows
           else
             right = new data.RowTable @rschema
           @iter = data.ops.Util.crossArrayIter @schema, left, right, @jointype, @leftf, @rightf
@@ -97,8 +106,7 @@ class data.ops.HashJoin extends data.Table
         ret
 
       close: -> 
-        @ht1 = @ht2 = null
         @iter.close() if @iter?
         @iter = null
 
-    new Iter @schema, @t1.schema, @t2.schema, @ht1, @ht2, @jointype, @leftf, @rightf
+    new Iter @schema, @t1.schema, @t2.schema, @jointype, @leftf, @rightf

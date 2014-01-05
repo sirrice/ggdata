@@ -4,7 +4,7 @@
 class data.ops.Aggregate extends data.Table
   # don't care about column value.  
   # fills it in with 1s
-  @STAR = '_'
+  @STAR = '*'
 
 
   # @param aggs of the form
@@ -38,6 +38,19 @@ class data.ops.Aggregate extends data.Table
     _.compact _.flatten _.map @aggs, (agg) ->
       if (col == agg.alias) or (col in _.flatten([agg.alias]))
         agg.col
+
+  toSQL: ->
+    partcolstrs = @table.partcols.join ', '
+    # XXX: assumes that aggs are all simple SQL aggs and
+    #      aliased with the SQL agg function name
+    aggstrs = @aggs.map (agg) ->
+      "#{agg.alias}(#{agg.col}) as #{agg.alias}"
+
+    """
+    select #{partcolstrs}, #{aggstrs}
+    from (#{@table.toSQL()}) as #{@id}
+    group by #{partcolstrs}
+    """
 
   iterator: ->
     tid = @id
@@ -101,6 +114,12 @@ class data.ops.Aggregate extends data.Table
     for agg in @aggs
       data.ops.Aggregate.normalizeAgg agg, @schema
 
+  # update the schema with aggregate's aliases
+  #
+  # @return aggregate with structure:
+  # {
+  #   
+  # }
   @normalizeAgg: (agg, schema) ->
     agg.type ?= data.Schema.object
     if _.isArray agg.alias

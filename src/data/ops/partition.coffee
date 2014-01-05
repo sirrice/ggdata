@@ -19,15 +19,11 @@ class data.ops.Partition extends data.Table
   children: -> [@table]
   iterator: ->
     timer = @timer()
-    unless @ht?
-      timer.start()
-      @ht = _.values(data.ops.Util.buildHT @table, @partcols)
-      timer.stop()
-
+    _me = @
     tid = @id
 
     class Iter
-      constructor: (@schema, @table, @ht, @cols, @alias) ->
+      constructor: (@schema, @table, @cols, @alias) ->
         @_row = new data.Row @schema
         @idx = 0
 
@@ -37,7 +33,7 @@ class data.ops.Partition extends data.Table
       next: -> 
         throw Error("iterator has no more elements") unless @hasNext()
         timer.start()
-        htrow = @ht[@idx]
+        htrow = _me.ht[@idx]
         @idx += 1
         @_row.reset()
         @_row.id = data.Row.makeId tid, @idx-1
@@ -62,12 +58,16 @@ class data.ops.Partition extends data.Table
         @_row
 
       hasNext: -> 
-        @idx < @ht.length
+        unless _me.ht?
+          timer.start()
+          _me.ht = _.values(data.ops.Util.buildHT _me.table, _me.partcols)
+          timer.stop()
+        @idx < _me.ht.length
 
       close: -> 
         @table = null
 
-    new Iter @schema, @table, @ht, @partcols, @alias
+    new Iter @schema, @table, @partcols, @alias
 
 
 

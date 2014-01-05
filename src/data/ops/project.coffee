@@ -42,6 +42,14 @@ class data.ops.Project extends data.Table
         desc.cols
     _.compact _.flatten cols
 
+  toSQL: ->
+
+    """
+    select 
+    FROM (#{@table.toSQL()})
+    """
+
+
 
   inferUnknownCols: ->
     return if @_infered?

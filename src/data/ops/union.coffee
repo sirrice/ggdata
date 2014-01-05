@@ -28,6 +28,10 @@ class data.ops.Union extends data.Table
     nrowsArr = _.map @tables, (t) -> t.nrows()
     _.reduce nrowsArr, ((a,b)->a+b), 0
 
+  toSQL: ->
+    sqls = @tables.map (t) -> "(#{t.toSQL()})"
+    sqls.join ' UNION '
+
   children: -> @tables
   iterator: ->
     tid = @id
