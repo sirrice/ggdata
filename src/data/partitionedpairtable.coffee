@@ -213,12 +213,14 @@ class data.PartitionedPairTable extends data.PairTable
     cols = _.keys cols
 
     rows = []
-    ppts = for pt in pts
+    schema = null
+    prov = for pt in pts
       pt = pt.partitionOn cols
       rows.push.apply rows, pt.table.rows
-      pt
+      schema ?= pt.table.schema
+      pt.left()
 
-    newtable = new data.ops.Array ppts[0].table.schema, rows
+    newtable = new data.ops.Array schema, rows, prov
     new data.PartitionedPairTable newtable, cols, pts[0].leftSchema(), pts[0].rightSchema()
 
 

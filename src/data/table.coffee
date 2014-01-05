@@ -80,24 +80,6 @@ class data.Table
     cols = _.flatten [col]
 
 
-
-  #
-  # Traversal Methods
-  #
-
-  # print the query plan
-  graph: (f=null)-> data.util.Traverse.toString @, f
-
-  # breadth traversals of the query plan
-  # @param f (node) -> anything
-  bfs: (f) -> data.util.Traverse.bfs @, f
-
-  # depth traversal of the query plan
-  # @param f (node, path-to-node) -> anything
-  dfs: (f) -> data.util.Traverse.dfs @, f
-
-  roots: -> data.util.Traverse.roots @
-
   # find the columns finalcol depends on.
   # a depends on cols if the cols contains a
   #
@@ -292,10 +274,19 @@ class data.Table
     new data.ops.Distinct @, cols
 
   cache: ->
-    new data.ops.Cache @
+    if _.isType(@, data.ops.Array) 
+      @
+    else
+      new data.ops.Cache @
 
   once: ->
-    new data.ops.Once @
+    if (
+      _.isType(@, data.ops.Array) or 
+      _.isType(@, data.RowTable) or
+      _.isType(@, data.ColTable))
+      @
+    else
+      new data.ops.Once @
 
   # remove children from provenance traces
   disconnect: ->
