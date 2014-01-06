@@ -103,12 +103,15 @@ class data.ops.Util
   #
   # build hash table based on equality of columns
   # @param cols columns to use for equality test
+  # @param complete create partition for cross product of
+  #        partitioned columns?
   # @return [ht, keys]  where
   #   ht = JSON.stringify(key) -> rows
   #   keys: JSON.stringify(key) -> key
-  @buildHT: (t, cols) ->
+  @buildHT: (t, cols, complete=no) ->
     getkey = @createKeyF cols, t.schema
 
+    uniqvals = {}
     ht = {}
     t.each (oldrow) ->
       row = oldrow.shallowClone()
@@ -117,5 +120,20 @@ class data.ops.Util
       unless strkey of ht
         ht[strkey] = { str: strkey, key: key, rows: [] } 
       ht[strkey].rows.push row
+
+      if complete
+        for col, idx in cols
+          uniqvals[col] = {} unless col of uniqvals
+          uniqvals[col][key[idx]] = yes
+
+    if complete
+      for key, o of uniqvals
+        uniqvals[key] = _.keys(o)
+
+      for row in _.cross(uniqvals)
+        [key, strkey] = getkey row
+        unless strkey of ht
+          ht[strkey] = { str: strkey, key: key, rows: [] }
+
     ht
 
