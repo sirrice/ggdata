@@ -321,8 +321,8 @@ class data.Table
     (new data.ops.BlockProject @, mappings, extend, blocksize)
 
   # @param alias name of the table column that will store the partitions
-  partition: (cols, alias="table") ->
-    (new data.ops.Partition @, cols, alias)
+  partition: (cols, alias="table", complete=no) ->
+    (new data.ops.Partition @, cols, alias, complete)
 
   flatten: ->
     new data.ops.Flatten @
@@ -331,9 +331,9 @@ class data.Table
   aggregate: (aggs, alias=null) ->
     new data.ops.Aggregate @, aggs, alias
 
-  groupby: (cols, aggs) ->
+  groupby: (cols, aggs, complete=no) ->
     new data.ops.Aggregate(
-      @partition(cols),
+      @partition(cols, complete),
       aggs)
 
   partitionJoin: (table, cols, type="outer") ->
