@@ -82,12 +82,13 @@ class data.ops.Filter extends data.Table
           return no
       yes
 
-  @normalizeDesc: ( desc) ->
+  @normalizeDesc: (desc) ->
     if _.isFunction desc
       desc = {
         col: '*'
         f: desc
       }
+    desc = _.clone desc
     
     if desc.col? and 'val' of desc
       desc.op ?= '='
