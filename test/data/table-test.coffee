@@ -19,43 +19,6 @@ makeTable = (n=10, type="row") ->
   Table.fromArray rows, null, type
 
 checks = (nrows) ->
-  "frozen":
-    topic: (t) -> t.freeze()
-
-    "is frozen": (t) ->
-      assert t.isFrozen()
-      assert t.isFrozen()
-
-    "can be reshaped": (t) ->
-      assert.doesNotThrow () -> t.limit('a').all()
-      assert.doesNotThrow () -> t.partition('a').all()
-
-    "can be joined": (t) ->
-      assert.doesNotThrow () -> t.join(t, "a").all()
-
-
-    "when partitioned": 
-      topic: (t) -> t.partition 'a'
-
-      "each partition is frozen": (t) ->
-        partitions = t.all('table')
-        for p in partitions
-          assert p.isFrozen()
-    
-
-    "cannot be modified": (t) ->
-      assert.throws () -> t.project('a')
-      assert.throws () -> t.partition('a').aggregate(data.ops.Aggregate.count())
-
-    "when melted": 
-      topic: (t) -> t.melt()
-
-      "is not frozen": (t) ->
-        assert.isFalse t.isFrozen()
-
-      "can be modified": (t) ->
-        assert.doesNotThrow () -> t.project('a')
-
 
   "cached":
     topic: (t) ->
@@ -362,21 +325,6 @@ checks = (nrows) ->
         assert.equal row.get('n'), -x, "n is wrong #{row.get 'n'} != #{-x}"
         assert.equal row.get('m'), (-x-1000), "m is wrong #{row.get 'm'} != #{-x-1000}"
 
-    "when frozen":
-      topic: (t) ->
-        t.freeze()
-
-      "values correct": (t) ->
-        t.each (row, idx) ->
-          x = row.get 'x'
-          assert.equal x, idx
-          assert.equal row.get('a'), null
-          assert.equal row.get('y'), (x+100), "y is wrong #{row.get 'y'} != #{x+100}"
-          assert.equal row.get('z'), (x*100), "z is wrong #{row.get 'z'} != #{x*100}"
-          assert.equal row.get('n'), -x, "n is wrong #{row.get 'n'} != #{-x}"
-          assert.equal row.get('m'), (-x-1000), "m is wrong #{row.get 'm'} != #{-x-1000}"
-
-
 
 
   "project and extend":
@@ -510,8 +458,13 @@ _.extend rowtests, checks(nrows)
 coltests = topic: -> makeTable(nrows, 'col')
 _.extend coltests, checks(nrows)
 
+partitionedtests = topic: -> new data.PartitionedTable makeTable(nrows, 'col')
+_.extend partitionedtests, checks(nrows)
+
+
 
 suite.addBatch
+  "partitionedtable": partitionedtests
   "rowtable": rowtests
   "coltable": coltests
   "emptytable":
