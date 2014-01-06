@@ -5,7 +5,9 @@
 class data.ops.Partition extends data.Table
 
   # @param alias attribute name for the partition table
-  constructor: (@table, @partcols, @alias='table') ->
+  # @complete ensure cross product of all unique partition col
+  #           values are created
+  constructor: (@table, @partcols, @alias='table', @complete=no) ->
     super
     @partcols = _.flatten [@partcols]
     # clone schema so we copy nonpartition cols like fill
@@ -60,7 +62,7 @@ class data.ops.Partition extends data.Table
       hasNext: -> 
         unless _me.ht?
           timer.start()
-          _me.ht = _.values(data.ops.Util.buildHT _me.table, _me.partcols)
+          _me.ht = _.values(data.ops.Util.buildHT _me.table, _me.partcols, _me.complete)
           timer.stop()
         @idx < _me.ht.length
 
