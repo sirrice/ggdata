@@ -333,7 +333,7 @@ class data.Table
 
   groupby: (cols, aggs, complete=no) ->
     new data.ops.Aggregate(
-      @partition(cols, complete),
+      @partition(cols, 'table', aggs, complete),
       aggs)
 
   partitionJoin: (table, cols, type="outer") ->
