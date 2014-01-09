@@ -8,59 +8,61 @@ class data.PairTable
   constructor: (@left_=null, @right_=null) ->
     @left_ ?= new data.RowTable(new data.Schema())
     @right_ ?= new data.RowTable(new data.Schema())
+    @left @left_
+    @right @right_
+
     @log = data.util.Log.logger 'data.pairtable', 'pairtable'
 
   
   left: (t) ->
-    @left_ = t if t?
+    if t?
+      unless _.isType t, data.PartitionedTable
+        t = new data.PartitionedTable t
+      @left_ = t
     @left_
   
   right: (t) ->
-    @right_ = t if t?
+    if t?
+      unless _.isType t, data.PartitionedTable
+        t = new data.PartitionedTable t
+      @right_ = t
     @right_
-
-  lefts: -> [@left()]
-  rights: -> [@right()]
 
   leftSchema: -> @left().schema
   rightSchema: -> @right().schema
   clone: -> new data.PairTable @left().clone(), @right().clone()
 
-  unpartition: -> @
-
   sharedCols: ->
     data.PairTable.sharedCols @leftSchema(), @rightSchema()
 
-  addSharedCol: (col, val) ->
-    @left @left().setColVal col, val
-    @right @right().setColVal col, val
-    @
+  addTag: (col, val, type) ->
+    new data.PairTable(
+      @left().addTag col, val, type
+      @right().addTag col, val, type
+    )
+
+  rmTag: (col) ->
+    new data.PairTable(
+      @left().rmTag col
+      @right().rmTag col
+    )
 
   partitionOn: (cols, type='outer') ->
-    cols = _.compact _.flatten [cols]
-    if cols.length == 0
-      schema = new data.Schema(
-        ['left', 'right']
-        [data.Schema.table, data.Schema.table]
-      )
-      row = new data.Row schema, [@left(), @right()]
-      table = new data.ops.Array schema, [row]
-      new data.PartitionedPairTable table, cols, @leftSchema(), @rightSchema()
-    else
-      o = data.PairTable.partition @left(), @right(), cols, type
-      new data.PartitionedPairTable o.partition, cols, @leftSchema(), @rightSchema()
+    new data.PairTable(
+      @left().partitionOn(cols)
+      @right().partitionOn(cols)
+    )
 
   # create a list of pairtables.  one for each partition
   partition: (cols, type='outer') ->
-    data.PairTable.partition(@left(), @right(), cols, type).pts
+    data.PairTable.partition(@left(), @right(), cols, type)
 
   # partition on _all_ of the shared columns
   # 
   # enforces invariant: each md should have 1+ row
-  fullPartition: () -> 
+  fullPartition: -> 
     cols = @sharedCols()
-    right = @left().melt().project(cols, no).distinct().join(@right(), cols)
-    pt = new data.PairTable(@left(), right)
+    pt = @ensure cols
     pt.partition cols
 
   # ensures there MD tuples for each unique combination of keys
@@ -71,6 +73,61 @@ class data.PairTable
 
   @ensure: (left, right, cols, log) ->
     cols = _.flatten [cols]
+
+    sharedl = _.intersection(
+      cols, 
+      _.union(left.partcols, left.cols())
+    )
+    sharedr = _.intersection(
+      cols, 
+      _.union(right.partcols, right.cols())
+    )
+    left = left.partitionOn sharedl
+    right = right.partitionOn sharedr
+
+    newrSchema = right.schema.clone()
+    newrSchema.merge left.schema.project(sharedl)
+
+    mapping = _.map cols, (col) =>
+      if left.has col
+        col
+      else
+        {
+          alias: col
+          f: () -> null
+          type: right.schema.type(col)
+          cols: []
+        }
+    ldistinct = left.project(mapping, no).distinct()
+
+
+
+    rights = []
+    for [key, rp] in right.partitions right.tags()
+      pt = new data.PairTable ldistinct, rp
+      ps = pt.partition _.intersection(sharedl, sharedr)
+      for p in ps
+        l = p.left()
+        r = p.right()
+        if l.nrows() == 0
+          newright = r
+        newright = l.cross r, 'outer', null, () ->
+          if rp.nrows() > 0
+            row = rp.any()
+            for col in cols
+              row.set col, null if row.has(col)
+          else
+            row = new data.Row newrSchema
+          row
+        for tag in right.tags()
+          newright = newright.addTag tag, rp.table.any(tag)
+        rights.push newright
+
+    right = data.PartitionedTable.fromTables rights
+    return new data.PairTable left, right
+
+
+
     sharedCols = _.filter cols, (col) -> left.has(col) and right.has(col)
     restCols = _.reject cols, (col) => right.schema.has col
     unknownCols = _.reject restCols, (col) => left.schema.has col
@@ -78,14 +135,14 @@ class data.PairTable
     if log? and unknownCols.length > 0
       log.warn "ensure dropping unknown cols: #{unknownCols}"
 
+
     # fast path if we know nothing needs to be ensured
     if cols.length == 0
       if right.nrows() == 0
         row = new data.Row right.schema
-        right = new data.ops.Array right.schema, row
+        right = new data.ops.Array right.schema, [row]
         return new data.PairTable left, right
       return new data.PairTable left, right
-
 
     newrSchema = right.schema.clone()
     newrSchema.merge left.schema.project(restCols)
@@ -100,37 +157,37 @@ class data.PairTable
           cols: []
         }
     canonicalMD = new data.Row newrSchema
+    createcopy = () -> [canonicalMD.clone()]
+
+    data.Table.timer.start('ensure')
+    ldistinct = left.project(mapping, no).distinct()
 
     # fast path if right doesn't have any of the ensured cols
     if sharedCols.length == 0
-      distinct = left.project(mapping, no).distinct()
-      right = distinct.cross right, 'left', null, () -> 
-        canonicalMD.clone()
+      right = ldistinct.cross right, 'left', null, createcopy
+      data.Table.timer.stop('ensure')
       return new data.PairTable left, right
 
-
-
-
-
-    for col in cols
-      canonicalMD.set(col, left.any(col)) if left.has col
-    createcopy = () -> 
-      row = canonicalMD.clone().reset()
-      [row]
     nrows = right.nrows()
-    partitioned = (new data.PairTable(left.project(mapping, no).distinct(), right)).partition(sharedCols)
-    rights = for [key, p] in partitioned
-      p.left().cross(p.right(), 'outer', null, createcopy)
+    partitioned = @partition(ldistinct, right, sharedCols)
+    rights = for pt in partitioned
+      r = pt.right().join pt.left(), cols, 'right', createcopy, null
+      r
 
-    right = new data.ops.Union rights
+    right = data.PartitionedTable.fromTables rights
+    data.Table.timer.stop('ensure')
     new data.PairTable left, right
 
 
   # create a list of pairtables.  one for each partition
   @partition: (left, right, cols, type='outer') ->
-    sharedcols = data.PairTable.sharedCols(left.schema, right.schema)
+    sharedcols = _.intersection(_.union(left.partcols, left.cols()),
+      _.union(right.partcols, right.cols()))
     cols = _.flatten [cols]
     cols = _.intersection cols, sharedcols
+
+    left = left.partitionOn cols
+    right = right.partitionOn cols
     leftp = left.partition(cols, 'left')
     rightp = right.partition(cols, 'right')
     leftf = () => 
@@ -142,25 +199,16 @@ class data.PairTable
       row.set 'right', new data.RowTable(right.schema)
       row
     pairs = leftp.join rightp, cols, type, leftf, rightf
-    keyf = data.ops.Util.createKeyF cols, leftp.schema
-    pts = pairs.map (row) -> 
+    pairs.map (row) -> 
       l = row.get 'left'
       r = row.get 'right'
       l ?= new data.RowTable leftp.schema
       r ?= new data.RowTable rightp.schema
-      str = keyf(row)[1]
-      [str, new data.PairTable(l, r)]
-    {
-      pts: pts,
-      partition: pairs
-    }
+      new data.PairTable(l, r)
 
 
-  @sharedCols: (s1, s2) ->
-    cols = _.uniq _.flatten [s1.cols, s2.cols]
-    _.filter cols, (col) =>
-      (s1.has(col) and s2.has(col) and 
-      (s1.type(col) == s2.type(col)))
+  @sharedCols: (s1, s2) -> 
+    _.intersection s1.cols, s2.cols
 
 
   @union: () ->
@@ -168,8 +216,8 @@ class data.PairTable
     lefts = _.map pts, (pt) -> pt.left()
     rights = _.map pts, (pt) -> pt.right()
     new data.PairTable(
-      new data.ops.Union(lefts),
-      new data.ops.Union(rights)
+      data.PartitionedTable.fromTables lefts
+      data.PartitionedTable.fromTables rights
     )
 
 

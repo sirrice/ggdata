@@ -3,7 +3,8 @@
 class data.PartitionedTable extends data.Table
 
   # @param table [partition cols..., table]
-  constructor: (@table, @partcols=[], @schema) ->
+  # @param bcache should we cache @table?
+  constructor: (@table, @partcols=[], @schema, @bcache=yes) ->
     super
 
     @tablecols = @table.cols().filter (col) => @table.schema.type(col) == data.Schema.table
@@ -11,26 +12,30 @@ class data.PartitionedTable extends data.Table
     if @tablecols.length == 0
       @schema = @table.schema
       schema = new data.Schema ['table'], [data.Schema.table]
-      table = new data.RowTable schema, [[@table]]
+      row = new data.Row schema, [@table]
+      table = new data.ops.Array schema, [row]
       @table = table
       @tablecols = ['table']
 
     if @tablecols.length > 1
       throw Error
 
-
     for col in @partcols
       unless @table.has col
         throw Error
 
     @tablecol = @tablecols[0]
+    @normcols = _.without @table.cols(), @tablecol
 
     @schema ?= @table.any(@tablecol)
     unless @schema?
       throw Error
 
-    unless _.isType @table, data.ops.Array
+    unless @bcache and _.isType @table, data.ops.Array
+      data.Table.timer.start 'ptcache'
       @table = @table.cache()
+      data.Table.timer.stop 'ptcache'
+      console.log ['ptcache', data.Table.timer.avg('ptcache'), data.Table.timer.count('ptcache')]
 
     @setProv()
 
@@ -59,41 +64,48 @@ class data.PartitionedTable extends data.Table
       part = @table.partition cols, 'table', complete
       part.map (row) =>
         t = row.get('table')
-        [row.project(cols), new @constructor(t, @partcols, @schema)]
+        [row.project(cols), new data.PartitionedTable(t, @partcols, @schema, no)]
     else
       @table.map (row) =>
         t = new data.ops.Array(@table.schema, [row])
-        [row.project(cols), new @constructor(t, @partcols, @schema)]
+        [row.project(cols), new data.PartitionedTable(t, @partcols, @schema)]
 
   partitionOn: (cols, complete=yes) ->
     cols = _.compact _.flatten [cols]
     diffcols = _.difference(cols, @partcols)
     if diffcols.length > 0
       for col in diffcols
-        unless col in @schema.cols
+        unless (col in @schema.cols) or (col in @partcols)
           throw Error "#{col} is not in schema #{@schema.cols}"
 
       cols = _.union cols, @partcols
+      tagcols = _.difference cols, @schema.cols
       newschema = null
       newrows = []
       @table.each (row) =>
         p = row.get(@tablecol).partition(cols, @tablecol, complete)
+        for tagcol in tagcols
+          p = p.setColVal tagcol, row.get(tagcol), row.schema.type(tagcol)
         newschema ?= p.schema
         newrows.push.apply newrows, p.all()
 
       newtable = new data.ops.Array newschema, newrows
-      new @constructor newtable, cols, @schema
+      new data.PartitionedTable newtable, cols, @schema
     else
       @
+
+  tags: ->
+    _.reject @partcols, (c) => @has c
 
   addTag: (col, val, type=null) ->
     type ?= data.Schema.type val
     newtable = @table.setColVal col, val, type
-    new @constructor newtable, _.union(@partcols, [col]), @schema
+    cols = _.union [col], @partcols
+    new data.PartitionedTable newtable, cols, @schema, no
 
   rmTag: (col) ->
     newtable = @table.exclude col
-    new @constructor newtable, @partcols.without(col), @schema
+    new data.PartitionedTable newtable, _.without(@partcols, col), @schema, no
 
   @fromTables: (tables) ->
     tables = _.flatten [tables]
@@ -104,14 +116,34 @@ class data.PartitionedTable extends data.Table
           cols[col] = yes
         t
       else
-        new data.PartitionedTable t, [], t.schema
+        new data.PartitionedTable t, [], t.schema, no
+
+    return tables[0] if tables.length == 1
 
     cols = _.keys cols
+    schema = null
     tables = for t in tables
-      t.partitionOn cols
+      t = t.partitionOn cols
+      schema ?= t.schema
+      t.table
+
+    union = new data.ops.Union tables
+    part = union.partition cols
+    newtable = part.project {
+      alias: 'table'
+      cols: ['table']
+      type: data.Schema.table
+      f: (tablerows) ->
+        tables = tablerows.map (row) ->
+          row.get 'table'
+        new data.ops.Union tables
+    }
 
     new data.PartitionedTable(
-      new data.ops.Union tables
+      newtable
+      cols
+      schema
+      yes
     )
 
   iterator: ->
@@ -164,21 +196,55 @@ class data.PartitionedTable extends data.Table
 
   project: -> @apply 'project', arguments...
   filter: -> @apply 'filter', arguments...
-  distinct: -> @apply 'distinct', arguments...
   cache: -> @apply 'cache', arguments...
   once: -> @apply 'once', arguments...
-  cross: -> @apply 'cross', arguments...
   join: -> @apply 'join', arguments...
   flatten: -> @apply 'flatten', arguments...
   groupby: -> @apply 'groupby', arguments...
-  aggregate: -> 
-    @apply 'aggregate', arguments...
+  aggregate: -> @apply 'aggregate', arguments...
+
+  cross: (table, type, leftf, rightf) -> 
+    newschema = @table.schema.clone()
+    table = data.PartitionedTable.fromTables table
+    newschema = newschema.merge table.table.schema.project(table.partcols)
+    allcols = _.union @partcols, table.partcols, ['table']
+    subschema = null
+    newrows = []
+    @table.each (lrow) =>
+      table.table.each (rrow) =>
+        newrow = new data.Row newschema
+        newrow.steal lrow
+        newrow.steal rrow
+        cross = lrow.get(@tablecol).cross(rrow.get(table.tablecol))
+        newrow.set 'table', cross
+        subschema ?= cross.schema
+        newrows.push newrow
+
+    partcols = _.union @partcols, table.partcols
+    newtable = new data.ops.Array newschema, newrows
+    return new data.PartitionedTable newtable, partcols, subschema
+    @apply 'cross', arguments...
+
+  distinct: (cols) -> 
+    cols ?= @schema.cols
+    cols = _.flatten [cols]
+
+    if _.difference(cols, @partcols).length == 0
+      rows = @table.distinct(cols).map (row) =>
+        t = row.get(@tablecol).limit(1)
+        row = row.shallowClone()
+        row.set @tablecol, t
+        row
+      t = new data.ops.Array(@table.schema, rows)
+      new data.PartitionedTable t, @partcols, @schema
+    else
+      @apply 'distinct', arguments...
 
   orderby: (cols, reverse=no) ->
     if _.difference(cols, @partcols).length > 0
-      new @constructor new data.ops.Union(@table.all(@tablecol)).orderby(cols, reverse)
+      new data.PartitionedTable new data.ops.Union(@table.all(@tablecol)).orderby(cols, reverse)
     else
-      new @constructor @table.sort(cols)
+      new data.PartitionedTable(@table.sort(cols, reverse)).apply('orderby', cols, reverse)
 
   union: (tables...) -> data.PartitionedTable.fromTables tables.concat([@])
 
@@ -215,4 +281,5 @@ class data.PartitionedTable extends data.Table
       sofar += t.nrows()
 
     new data.PartitionedTable new data.ops.Array(@table.schema, newrows)
+
 

@@ -4,6 +4,30 @@ assert = require "assert"
 ggprov = require 'ggprov'
 
 
+print = (t1) ->
+  console.log t1.schema.toString()
+  console.log t1.raw()[0..10]
+  console.log "\n"
+
+testf = (name, n, f) ->
+  timer = new data.util.Timer()
+  _.times n, (i) ->
+    timer.start()
+    f()
+    timer.stop()
+  console.log "#{name}\ttook: #{timer.avg()}"
+
+makeTable = (n=10, type="row") ->
+  rows = _.times n, (i) -> {
+    a: i%2, 
+    b: i%3
+    x: i
+    y: {
+      z: i
+    }
+  }
+  data.Table.fromArray rows, null, type
+
 
 rows = _.times 10, (i) ->  {
     a: i%2, 
@@ -19,39 +43,59 @@ rows = _.times 10, (i) ->  {
 }
 t = data.fromArray rows, null, 'col'
 
-testf = (name, n, f) ->
-  timer = new data.util.Timer()
-  _.times n, (i) ->
-    timer.start()
-    f()
-    timer.stop()
-  console.log "#{name}\ttook: #{timer.avg()}"
 
+table =  new data.PartitionedTable makeTable(10, 'col')
+rows = _.times 10, (i) -> { x: i+5, b: i%3}
+t2 = data.Table.fromArray rows
+table.cross t2
+throw Error()
+
+
+
+Schema = data.Schema
+Table = data.Table
+
+
+f = (pt) ->
+  pt.partition(['a', 'b', 'z']).nrows()
+
+t2 = t.project {
+  alias: 'z'
+  cols: ['a']
+  f: (a) -> a * 1000
+  type: data.Schema.numeric
+}
+testf "normal", 20, () -> f t2
+
+pt = new data.PartitionedTable t
+tmp = pt.addTag 'foo', -1
+console.log tmp.table.any 'foo'
+console.log tmp.partcols
+
+for [key, p] in tmp.partitions 'a'
+  console.log key.raw()
+  console.log p.table.any('foo')
+
+ps = tmp.partition 'a'
+console.log ps.any('table').table.any('foo')
+
+pt = data.PartitionedTable.fromTables [
+  t.partitionOn 'a'
+  t.partitionOn 'a'
+]
+ps = pt.partitions 'a'
+console.log ps.length
+
+throw Error()
 
 
 pstore = ggprov.Prov.get()
-pt = new data.PairTable t, t
-console.log t.id
-ppt = pt.partitionOn []
-console.log ppt.left().id, ppt.right().id
-console.log pstore.forward([t], 'table').map (n) -> n.id
-console.log
-
-console.log
-console.log ppt.cols
-ppt = ppt.addSharedCol('d', 1)
-console.log ppt.left().id, ppt.right().id
-console.log pstore.forward([pt.left()], 'table').map (n) -> n.id
-
-console.log ppt.cols
-ppt = data.PartitionedPairTable.fromPairTables [ppt, ppt]
-console.log ppt.left().id, ppt.right().id
-console.log pstore.forward([pt.left()], 'table').map (n) -> n.id
-console.log pstore.forward([ppt.left()], 'table').map (n) -> n.id
-
-
-
-
+pt = new data.PairTable t, makeTable(2)
+print pt.right()
+pt.right pt.right().addTag('foo', 0)
+print pt.ensure(['a', 'c']).right()
+print pt.ensure(['a']).right()
+console.log pt.ensure(['a', 'c']).right().table.all('foo')
 
 throw Error
 

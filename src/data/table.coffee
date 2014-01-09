@@ -226,6 +226,10 @@ class data.Table
   # Convenience methods that wrap operators
   #
 
+  partitionOn: ->
+    pt = new data.PartitionedTable(@)
+    pt.partitionOn arguments...
+
   limit: (n) ->
     new data.ops.Limit @, n
 
@@ -333,7 +337,7 @@ class data.Table
 
   groupby: (cols, aggs, complete=no) ->
     new data.ops.Aggregate(
-      @partition(cols, 'table', aggs, complete),
+      @partition(cols, 'table', complete),
       aggs)
 
   partitionJoin: (table, cols, type="outer") ->

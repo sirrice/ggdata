@@ -59,6 +59,7 @@ class data.ops.Cross extends data.Table
       reset: ->
         @liter.reset()
         @riter.reset()
+        @needNext = yes
 
       next: ->
         throw Error("iterator has no more elements") unless @hasNext()
@@ -73,15 +74,13 @@ class data.ops.Cross extends data.Table
         @_row
 
       hasNext: ->
-        @needNext = yes unless @riter.hasNext()
-
         timer.start()
         while @liter.hasNext() and (@needNext or not @riter.hasNext())
           @riter.reset()
+          @riter.hasNext()
           @lrow.reset().steal @liter.next()
           @needNext = no
         timer.stop()
-
         not(@needNext) and @riter.hasNext()
 
       close: ->

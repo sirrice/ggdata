@@ -68,6 +68,28 @@ createEmptyTable = ->
   new data.PairTable left, right
 
 
+createComplexTable = (n) ->
+  lschema = Schema.fromJSON
+    id: Schema.numeric
+    a: Schema.numeric
+    j1: Schema.numeric
+    j2: Schema.numeric
+  rschema = Schema.fromJSON
+    id: Schema.numeric
+    b: Schema.ordinal
+    j1: Schema.numeric
+    j2: Schema.numeric
+  leftrows = _.times 10, (i) -> 
+    { id: i, a: i%5, j1: i%2, j2: i%3 }
+  rightrows = _.times 10, (i) -> 
+    { id: i, b: "b-#{i%4}", j1: i%2, j2:i%3 }
+  left = Table.fromArray leftrows, lschema
+  right = Table.fromArray rightrows, rschema
+
+  new data.PairTable left, right
+
+
+
 checkEnsure =
   "has correct shared columns": (pt) ->
     truth = _.intersection pt.left().cols(), pt.right().cols()
@@ -174,6 +196,71 @@ suite.addBatch
       topic: (table) ->
         partitions = table.fullPartition()
         assert.equal partitions.length, 10
+
+  "tagged table": 
+    topic: ->
+      t1 = createComplexTable(10)
+      t1 = t1.addTag '_barrier', 0
+      t1 = t1.right t1.right().exclude 'j1'
+      t1
+
+    "unioned with tagged table without ensure col 'j1'":
+      topic: (t) ->
+        t2 = createComplexTable(10)
+        t2 = t2.addTag '_barrier', 1
+        t2 = t2.right t2.right().exclude 'j1'
+        data.PairTable.union t, t2
+
+      "partitioned on _barrier": ->
+        topic: (pt) -> pt.partition '_barrier'
+
+        "has 2 partitions": (ps) ->
+          assert.equal ps, 2
+
+        "1st partition _barrier = 0": (ps) ->
+          console.log ps
+          assert.equal ps[0].right().table.any('_barrier'), 0
+
+        "2nd partition _barrier = 1": (ps) ->
+          assert.equal ps[1].right().table.any('_barrier'), 0
+
+
+      "when ensured on j1": ->
+        topic: (pt) -> pt.ensure 'j1'
+
+        "partitioned on _barrier": ->
+          topic: (pt) -> pt.partition '_barrier'
+
+          "has 2 partitions": (ps) ->
+            assert.equal ps, 2
+
+          "1st partition _barrier = 0": (ps) ->
+            assert.equal ps[0].right().table.any('_barrier'), 0
+
+          "2nd partition _barrier = 1": (ps) ->
+            assert.equal ps[1].right().table.any('_barrier'), 0
+
+
+      "when partitionOn on j1": ->
+        topic: (pt) -> pt.partitionOn 'j1'
+
+        "partitioned on _barrier": ->
+          topic: (pt) -> pt.partition '_barrier'
+
+          "has 2 partitions": (ps) ->
+            assert.equal ps, 2
+
+          "1st partition _barrier = 0": (ps) ->
+            assert.equal ps[0].right().table.any('_barrier'), 0
+
+          "2nd partition _barrier = 1": (ps) ->
+            assert.equal ps[1].right().table.any('_barrier'), 0
+
+
+
+
+
+
 
 
   "table set": 

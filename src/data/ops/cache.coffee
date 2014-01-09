@@ -13,7 +13,7 @@ class data.ops.Cache extends data.ops.Array
     tablecols = _.filter @table.schema.cols, (col) =>
       @table.schema.type(col) == data.Schema.table
     rows = @table.map (row) ->
-      row = row.clone()
+      row = row.shallowClone()
       for col in tablecols
         if row.get(col)?
           row.set col, row.get(col).cache()
