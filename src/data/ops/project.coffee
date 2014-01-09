@@ -185,36 +185,40 @@ class data.ops.Project extends data.Table
 
     if desc.cols != '*' and _.isArray desc.cols
       if desc.isRawCol
-        colidx = schema.index desc.cols[0]
-        desc.f = ((colidx) ->
+        desc.f = ((col) ->
+          colidx = null
           (row) -> 
+            colidx ?= row.schema.index col
             v = row.data[colidx]
             v = null if v == undefined
             v
-        )(colidx)
+        )(desc.cols[0])
 
 
       else if desc.cols.length == 1 
-        colidx = schema.index desc.cols[0]
-        desc.f = ((f, colidx) ->
+        desc.f = ((f, col) ->
+          colidx = null
           (row, idx) -> 
+            colidx ?= row.schema.index col
             v = row.data[colidx]
             v = null if v == undefined
             f v, idx
-        )(desc.f, colidx)
+        )(desc.f, desc.cols[0])
+
 
 
       else
-        colidxs = _.map desc.cols, (col) -> schema.index col
-        desc.f = ((f, cols, colidx) ->
+        desc.f = ((f, cols) ->
+          colidxs = null
           (row, idx) ->
+            colidxs ?= _.map cols, (col) -> row.schema.index col
             args = for colidx in colidxs
               v = row.data[colidx]
               v = null if v == undefined
               v
             args.push idx
             f.apply f, args
-          )(desc.f, desc.cols, colidxs)
+          )(desc.f, desc.cols)
 
     else
       _row = new data.Row schema
